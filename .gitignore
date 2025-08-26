@@ -1,1 +1,17 @@
-/AIchat/.env
+# Python virtual environment
+AIchat/.venv/
+
+# 대용량 모델 폴더
+AIchat/kobert-emotion-final/
+
+# 라이브러리/바이너리 제외
+*.dll
+*.lib
+*.so
+*.bin
+*.safetensors
+
+# OS/IDE 불필요 파일
+*.pyc
+__pycache__/
+.vscode/
