@@ -318,6 +318,74 @@ def analysis(bot_type):
         emotion_data=emotion_data # 데이터를 JSON 문자열로 전달
     )
 
+# '저장한 문구' 페이지와 관련된 라우트들
+
+@app.route("/favorites")
+def favorites():
+    """'저장한 문구' 페이지를 렌더링합니다."""
+    if 'user_id' not in session:
+        return "로그인이 필요합니다.", 401
+    return render_template("favorites.html")
+
+@app.route("/api/favorites", methods=["GET"])
+def get_favorites():
+    """저장된 모든 문구를 DB에서 가져와 JSON으로 반환합니다."""
+    if 'user_id' not in session:
+        return jsonify({"error": "로그인이 필요합니다."}), 401
+
+    conn = get_db_conn()
+    try:
+        # bot_type에 따라 챗봇 이름을 함께 조회하고, liked_at도 가져옵니다.
+        messages = conn.execute('''
+                                SELECT
+                                    id, bot_type, message, liked_at,
+                                    CASE bot_type
+                                        WHEN 'ho' THEN '호'
+                                        WHEN 'ung' THEN '웅'
+                                        ELSE '알 수 없음'
+                                        END as bot_name
+                                FROM liked_messages
+                                WHERE user_id = ?
+                                ORDER BY liked_at DESC
+                                ''', (session['user_id'],)).fetchall()
+        return jsonify([dict(row) for row in messages])
+    except Exception as e:
+        print(f"Error in /api/favorites: {e}")
+        return jsonify({"error": "데이터를 불러오는 중 오류가 발생했습니다."}), 500
+    finally:
+        if conn:
+            conn.close()
+
+@app.route("/api/delete_favorite", methods=["POST"])
+def delete_favorite():
+    """저장된 문구를 DB에서 삭제합니다."""
+    if 'user_id' not in session:
+        return jsonify({"status": "error", "message": "로그인이 필요합니다."}), 401
+
+    data = request.json
+    message_id = data.get("id")
+    if not message_id:
+        return jsonify({"status": "error", "message": "ID가 필요합니다."}), 400
+
+    conn = get_db_conn()
+    try:
+        cursor = conn.cursor()
+        # 본인의 메시지만 삭제할 수 있도록 user_id 조건 추가
+        cursor.execute('DELETE FROM liked_messages WHERE id = ? AND user_id = ?', (message_id, session['user_id']))
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            # 삭제된 행이 없으면 권한이 없거나 메시지가 없는 경우
+            return jsonify({"status": "error", "message": "삭제 권한이 없거나 메시지를 찾을 수 없습니다."}), 404
+
+        return jsonify({"status": "success", "message": "메시지가 삭제되었습니다."})
+    except Exception as e:
+        print(f"Error in /api/delete_favorite: {e}")
+        conn.rollback()
+        return jsonify({"status": "error", "message": "삭제 중 오류 발생"})
+    finally:
+        if conn:
+            conn.close()
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
