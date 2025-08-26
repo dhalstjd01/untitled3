@@ -1,0 +1,70 @@
+/* C:/Users/zxzx0/Downloads/AIChatBot/AIchat/static/css/analysis.css */
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+:root {
+  --primary-color: #c379d5;
+  --background-color: #F7F9FC;
+  --border-color: #EAECEF;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background-color: var(--background-color);
+  margin: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.analysis-container {
+  background-color: white;
+  padding: 30px 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+  text-align: center;
+  width: 100%;
+  max-width: 650px;
+}
+
+.analysis-container h2 {
+  margin-top: 0;
+  margin-bottom: 25px;
+  color: #333;
+}
+
+.chart-wrapper {
+  position: relative;
+  height: 50vh;
+  max-height: 400px;
+  width: 100%;
+  margin-bottom: 30px;
+}
+
+.no-data-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100%;
+  color: #888;
+  font-size: 1.1em;
+}
+
+.back-to-chat-btn {
+  display: inline-block;
+  padding: 12px 28px;
+  background-color: var(--primary-color);
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: background-color 0.2s, transform 0.2s;
+}
+
+.back-to-chat-btn:hover {
+  background-color: #ad68bf;
+  transform: translateY(-2px);
+}

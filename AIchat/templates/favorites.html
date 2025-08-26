@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>저장한 메시지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+    body {
+      font-family: 'Noto Sans KR', sans-serif;
+      background-color: #f0f2f5;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      padding: 20px 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 2px solid #eee;
+      padding-bottom: 15px;
+      margin-top: 0;
+    }
+    .home-button {
+      display: inline-block;
+      margin-bottom: 20px;
+      padding: 8px 16px;
+      background-color: #007bff;
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: background-color 0.3s;
+    }
+    .home-button:hover {
+      background-color: #0056b3;
+    }
+    .favorite-item {
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      padding: 15px;
+      background-color: #fdfdfd;
+      position: relative;
+      padding-right: 40px;
+    }
+    .message-content {
+      font-size: 1.05em;
+      line-height: 1.6;
+      color: #333;
+      margin-bottom: 10px;
+      white-space: pre-wrap;
+    }
+    .message-meta {
+      text-align: right;
+      font-size: 0.85em;
+      color: #888;
+    }
+    .bot-name-ho { color: #d9534f; font-weight: bold; }
+    .bot-name-ung { color: #4242c4; font-weight: bold; }
+
+    .delete-button {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: none;
+      border: 1px solid #ddd;
+      color: #aaa;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 16px;
+      line-height: 26px;
+      text-align: center;
+      transition: all 0.2s ease;
+    }
+    .delete-button:hover {
+      background-color: #e57373;
+      color: white;
+      border-color: #e57373;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>저장한 메시지</h1>
+  <a href="/" class="home-button">홈으로 돌아가기</a>
+  <div id="favorites-list">
+    <p>기록을 불러오는 중...</p>
+  </div>
+</div>
+
+<script>
+  // ✨ 스크립트 전체를 하나의 즉시 실행 함수로 감싸서 변수 충돌을 방지합니다.
+  (async function() {
+    const favoritesListDiv = document.getElementById('favorites-list');
+    if (!favoritesListDiv) return;
+
+    // 삭제 함수
+    async function handleDelete(messageId) {
+      if (!confirm('이 메시지를 정말로 삭제하시겠습니까?')) {
+        return;
+      }
+      try {
+        const response = await fetch('/api/delete_favorite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: messageId })
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+          const itemToRemove = document.getElementById(`favorite-${messageId}`);
+          if (itemToRemove) {
+            itemToRemove.style.transition = 'opacity 0.5s ease';
+            itemToRemove.style.opacity = '0';
+            setTimeout(() => {
+              itemToRemove.remove();
+              if (favoritesListDiv.children.length === 0) {
+                favoritesListDiv.innerHTML = '<p>저장된 메시지가 없습니다.</p>';
+              }
+            }, 500);
+          }
+        } else {
+          alert(result.message || '삭제에 실패했습니다.');
+        }
+      } catch (error) {
+        console.error('Error deleting favorite:', error);
+        alert('삭제 중 오류가 발생했습니다.');
+      }
+    }
+
+    // 목록을 불러오고 렌더링하는 함수
+    function renderFavorites(messages) {
+      if (messages.length === 0) {
+        favoritesListDiv.innerHTML = '<p>저장된 메시지가 없습니다.</p>';
+        return;
+      }
+      favoritesListDiv.innerHTML = '';
+      messages.forEach(item => {
+        const favoriteItem = document.createElement('div');
+        favoriteItem.className = 'favorite-item';
+        favoriteItem.id = `favorite-${item.id}`;
+
+        const content = document.createElement('div');
+        content.className = 'message-content';
+        content.innerText = item.message;
+
+        const meta = document.createElement('div');
+        meta.className = 'message-meta';
+        const savedAt = new Date(item.liked_at).toLocaleString('ko-KR');
+        meta.innerHTML = `
+                        <span class="bot-name-${item.bot_type}">${item.bot_name}</span>
+                        <span> | ${savedAt}</span>
+                    `;
+
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'delete-button';
+        deleteButton.innerHTML = '&times;';
+        deleteButton.title = '삭제하기';
+        deleteButton.onclick = () => handleDelete(item.id);
+
+        favoriteItem.appendChild(content);
+        favoriteItem.appendChild(meta);
+        favoriteItem.appendChild(deleteButton);
+        favoritesListDiv.appendChild(favoriteItem);
+      });
+    }
+
+    // 페이지 로드 시, 목록을 가져와서 렌더링
+    try {
+      const response = await fetch('/api/favorites');
+      const messages = await response.json();
+      renderFavorites(messages);
+    } catch (error) {
+      console.error('Error fetching favorites:', error);
+      favoritesListDiv.innerHTML = '<p>기록을 불러오는 데 실패했습니다.</p>';
+    }
+  })();
+</script>
+</body>
+</html>

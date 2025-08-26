@@ -1,0 +1,74 @@
+<!-- C:/Users/zxzx0/Downloads/AIChatBot/AIchat/templates/analysis.html -->
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ bot_name }}와(과)의 감정 분석</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- 1. 방금 만든 analysis.css 파일을 연결합니다. -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analysis.css') }}">
+    <!-- 2. 그래프를 그리기 위한 Chart.js 라이브러리를 불러옵니다. -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+<div class="analysis-container">
+    <h2>{{ bot_name }}와(과)의 현재 대화 감정 분석</h2>
+    <div class="chart-wrapper">
+        <!-- 3. 그래프가 그려질 캔버스 영역입니다. -->
+        <canvas id="emotionChart"></canvas>
+    </div>
+    <a href="/chat/{{ bot_type }}" class="back-to-chat-btn">채팅으로 돌아가기</a>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+      // ✨ [수정] JSON.parse와 따옴표를 제거하고 객체를 직접 할당합니다.
+      const emotionData = {{ emotion_data | tojson | safe }};
+
+      const labels = Object.keys(emotionData);
+      const data = Object.values(emotionData);
+      const chartWrapper = document.querySelector('.chart-wrapper');
+      const ctx = document.getElementById('emotionChart').getContext('2d');
+
+      if (labels.length === 0) {
+        chartWrapper.innerHTML = '<div class="no-data-message">아직 분석된 감정이 없습니다.</div>';
+      } else {
+        new Chart(ctx, {
+          type: 'pie',
+          data: {
+            labels: labels,
+            datasets: [{
+              label: '감정 횟수',
+              data: data,
+              backgroundColor: [
+                'rgba(255, 206, 86, 0.8)',
+                'rgba(54, 162, 235, 0.8)',
+                'rgba(255, 99, 132, 0.8)',
+                'rgba(153, 102, 255, 0.8)',
+                'rgba(75, 192, 192, 0.8)',
+                'rgba(255, 159, 64, 0.8)',
+                'rgba(199, 199, 199, 0.8)'
+              ],
+              borderColor: 'rgba(255, 255, 255, 1)',
+              borderWidth: 2
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'top',
+              },
+              title: {
+                display: false
+              }
+            }
+          }
+        });
+      }
+    });
+</script>
+</body>
+</html>
