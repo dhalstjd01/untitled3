@@ -1,17 +1,18 @@
-# Python virtual environment
+# Python 가상환경 제외
 AIchat/.venv/
 
-# ��뷮 �� ����
+.env/
+# 대용량 모델 폴더 제외
 AIchat/kobert-emotion-final/
 
-# ���̺귯��/���̳ʸ� ����
+# PyTorch, TensorFlow 등 라이브러리에서 큰 바이너리 제외
 *.dll
 *.lib
 *.so
 *.bin
 *.safetensors
 
-# OS/IDE ���ʿ� ����
+# OS, IDE 관련 불필요 파일
 *.pyc
 __pycache__/
 .vscode/
