@@ -1,13 +1,13 @@
 # Python virtual environment
 AIchat/.venv/
 
-# 대용량 모델 폴더
+# 媛먯젙遺꾩꽍紐⑤뜽
 AIchat/kobert-emotion-final/
 
-# 민감 정보
+#Open API Key
 .env
 
-# OS/IDE 불필요 파일
+# OS/IDE
 *.pyc
 __pycache__/
 .vscode/
