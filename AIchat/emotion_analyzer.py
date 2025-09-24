@@ -1,5 +1,4 @@
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
-
 class EmotionAnalyzer:
     def __init__(self):
         try:
@@ -21,7 +20,7 @@ class EmotionAnalyzer:
 
         try:
             result = self.classifier(text)
-            print("분석 원본 결과:", result)  # 감정 분석 원본 결과만 출력
+            #print("분석 원본 결과:", result)  # 감정 분석 원본 결과만 출력
 
             label = result[0]['label']
             return label  # 라벨 그대로 반환

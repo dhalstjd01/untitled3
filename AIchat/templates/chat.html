@@ -12,11 +12,12 @@
     <img src="{{ profile_image }}" alt="{{ bot_name }} 프로필" class="header-profile-img" />
     <span>{{ bot_name }}</span>
     <div class="header-buttons">
-      <a href="/analysis/{{ bot_type }}" class="header-button">내 현재 감정상태</a>
+      <a href="/analysis/{{ session_id }}" class="header-button">내 감정 상태 보기</a>
       <button id="new-chat-btn" class="header-button">새 대화</button>
       <button id="past-chats-btn" class="header-button">대화 목록</button>
       <a href="/" class="header-button">나가기</a>
     </div>
+
   </div>
   <div class="chat-messages" id="chat-messages"></div>
   <form class="chat-input-section" id="chat-form">
@@ -42,6 +43,8 @@
   </div>
 </div>
 
+<!-- C:/Users/zxzx0/Desktop/chatbot/untitled3/AIchat/templates/chat.html -->
+
 <script>
   /**
    * 챗봇 UI와 상호작용을 관리하는 ChatManager 객체
@@ -49,6 +52,7 @@
   const ChatManager = {
     // 자주 사용하는 HTML 요소들을 미리 찾아 저장합니다.
     elements: {
+      chatHeader: document.querySelector('.chat-header'), // 헤더 전체를 선택
       chatMessages: document.getElementById('chat-messages'),
       chatForm: document.getElementById('chat-form'),
       userInput: document.getElementById('user-input'),
@@ -61,309 +65,316 @@
     },
     // 채팅 상태 정보를 저장합니다.
     state: {
-      botType: "{{ bot_type }}", // Flask에서 전달받은 봇 타입 ('ho' 또는 'ung')
+      botType: "{{ bot_type }}",
+      // [수정] sessionId를 상태로 관리합니다.
+      sessionId: "{{ session_id }}",
       botProfileImageSrc: document.querySelector('.header-profile-img').src,
       conversationHistory: JSON.parse({{ initial_history | tojson | safe }}),
-  contextMessage: '', // 우클릭 메뉴에서 사용할 메시지
-  },
+      contextMessage: '',
+    },
 
-  /**
-   * ChatManager를 초기화하고 이벤트 리스너를 바인딩합니다.
-   */
-  init() {
-    this.bindEvents();
-    this.renderHistory();
-  },
+    /**
+     * ChatManager를 초기화하고 이벤트 리스너를 바인딩합니다.
+     */
+    init() {
+      this.bindEvents();
+      this.renderHistory();
+    },
 
-  /**
-   * 모든 필요한 이벤트 리스너를 등록합니다.
-   */
-  bindEvents() {
-    this.elements.chatForm.addEventListener('submit', this.handleSendMessage.bind(this));
-    this.elements.newChatBtn.addEventListener('click', this.handleNewChat.bind(this));
-    this.elements.pastChatsBtn.addEventListener('click', this.openPastChatsModal.bind(this));
-    this.elements.modalCloseBtn.addEventListener('click', this.closeModal.bind(this));
-    this.elements.pastChatsModal.addEventListener('click', (e) => {
-      // 모달의 어두운 배경을 클릭하면 닫히도록 합니다.
-      if (e.target === this.elements.pastChatsModal) this.closeModal();
-    });
+    /**
+     * 모든 필요한 이벤트 리스너를 등록합니다.
+     */
+    bindEvents() {
+      this.elements.chatForm.addEventListener('submit', this.handleSendMessage.bind(this));
+      this.elements.newChatBtn.addEventListener('click', this.handleNewChat.bind(this));
+      this.elements.pastChatsBtn.addEventListener('click', this.openPastChatsModal.bind(this));
+      this.elements.modalCloseBtn.addEventListener('click', this.closeModal.bind(this));
+      this.elements.pastChatsModal.addEventListener('click', (e) => {
+        if (e.target === this.elements.pastChatsModal) this.closeModal();
+      });
 
-    this.elements.pastChatsList.addEventListener('click', this.handlePastChatClick.bind(this));
-    this.elements.chatMessages.addEventListener('contextmenu', this.handleMessageContextMenu.bind(this));
-    this.elements.contextMenu.addEventListener('click', this.handleContextMenuAction.bind(this));
+      this.elements.pastChatsList.addEventListener('click', this.handlePastChatClick.bind(this));
+      this.elements.chatMessages.addEventListener('contextmenu', this.handleMessageContextMenu.bind(this));
+      this.elements.contextMenu.addEventListener('click', this.handleContextMenuAction.bind(this));
 
-    // 페이지의 다른 곳을 클릭하면 컨텍스트 메뉴가 닫히도록 합니다.
-    window.addEventListener('click', () => this.elements.contextMenu.style.display = 'none');
-  },
+      window.addEventListener('click', () => this.elements.contextMenu.style.display = 'none');
+    },
 
-  /**
-   * 현재 대화 기록을 화면에 렌더링합니다.
-   */
-  renderHistory() {
-    this.elements.chatMessages.innerHTML = '';
-    this.state.conversationHistory.forEach(msg => this.addMessage(msg.content, msg.role, false));
-    this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-  },
+    /**
+     * 현재 대화 기록을 화면에 렌더링합니다.
+     */
+    renderHistory() {
+      this.elements.chatMessages.innerHTML = '';
+      this.state.conversationHistory.forEach(msg => this.addMessage(msg.content, msg.role, false));
+      this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+    },
 
-  /**
-   * 채팅창에 새로운 메시지를 추가합니다.
-   * @param {string} text - 메시지 내용
-   * @param {string} sender - 발신자 ('user' 또는 'assistant')
-   * @param {boolean} doScroll - 스크롤을 맨 아래로 이동할지 여부
-   */
-  addMessage(text, sender, doScroll = true) {
-    const cssSender = sender === 'assistant' ? 'bot' : sender;
-    let messageElement;
+    /**
+     * 채팅창에 새로운 메시지를 추가합니다.
+     */
+    addMessage(text, sender, doScroll = true) {
+      const cssSender = sender === 'assistant' ? 'bot' : sender;
+      let messageElement;
 
-    if (cssSender === 'bot') {
-      messageElement = document.createElement('div');
-      messageElement.className = 'message-row bot';
-      // innerText를 사용해 XSS 공격을 방지하고, data-message에 원본 텍스트를 저장합니다.
-      messageElement.innerHTML = `
+      if (cssSender === 'bot') {
+        messageElement = document.createElement('div');
+        messageElement.className = 'message-row bot';
+        messageElement.innerHTML = `
+            <img src="${this.state.botProfileImageSrc}" class="message-profile-img" alt="챗봇 프로필">
+            <div class="message bot-message" data-message="${encodeURIComponent(text)}"></div>
+          `;
+        messageElement.querySelector('.bot-message').innerText = text;
+      } else {
+        messageElement = document.createElement('div');
+        messageElement.className = 'message user-message';
+        messageElement.textContent = text;
+      }
+
+      this.elements.chatMessages.appendChild(messageElement);
+      if (doScroll) this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+    },
+
+    /**
+     * '입력 중...' 인디케이터를 표시/제거합니다.
+     */
+    showTypingIndicator() {
+      if (document.getElementById('typing-indicator')) return;
+      const typingIndicator = document.createElement('div');
+      typingIndicator.className = 'message-row bot';
+      typingIndicator.id = 'typing-indicator';
+      typingIndicator.innerHTML = `
           <img src="${this.state.botProfileImageSrc}" class="message-profile-img" alt="챗봇 프로필">
-          <div class="message bot-message" data-message="${encodeURIComponent(text)}"></div>
+          <div class="message bot-message typing-indicator">
+            <div class="typing-dots"><span></span><span></span><span></span></div>
+          </div>
         `;
-      messageElement.querySelector('.bot-message').innerText = text;
-    } else {
-      messageElement = document.createElement('div');
-      messageElement.className = 'message user-message';
-      messageElement.textContent = text;
-    }
+      this.elements.chatMessages.appendChild(typingIndicator);
+      this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
+    },
 
-    this.elements.chatMessages.appendChild(messageElement);
-    if (doScroll) this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-  },
+    removeTypingIndicator() {
+      const typingIndicator = document.getElementById('typing-indicator');
+      if (typingIndicator) typingIndicator.remove();
+    },
 
-  /**
-   * '입력 중...' 인디케이터를 표시합니다.
-   */
-  showTypingIndicator() {
-    if (document.getElementById('typing-indicator')) return;
-    const typingIndicator = document.createElement('div');
-    typingIndicator.className = 'message-row bot';
-    typingIndicator.id = 'typing-indicator';
-    typingIndicator.innerHTML = `
-        <img src="${this.state.botProfileImageSrc}" class="message-profile-img" alt="챗봇 프로필">
-        <div class="message bot-message typing-indicator">
-          <div class="typing-dots"><span></span><span></span><span></span></div>
-        </div>
-      `;
-    this.elements.chatMessages.appendChild(typingIndicator);
-    this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
-  },
+    /**
+     * 사용자 메시지를 서버로 전송하고 응답을 처리합니다.
+     */
+    async handleSendMessage(event) {
+      event.preventDefault();
+      const message = this.elements.userInput.value.trim();
+      if (!message) return;
 
-  /**
-   * '입력 중...' 인디케이터를 제거합니다.
-   */
-  removeTypingIndicator() {
-    const typingIndicator = document.getElementById('typing-indicator');
-    if (typingIndicator) typingIndicator.remove();
-  },
+      this.addMessage(message, 'user');
+      this.elements.userInput.value = '';
+      this.showTypingIndicator();
 
-  /**
-   * 사용자 메시지를 서버로 전송하고 응답을 처리합니다.
-   */
-  async handleSendMessage(event) {
-    event.preventDefault();
-    const message = this.elements.userInput.value.trim();
-    if (!message) return;
+      this.state.conversationHistory.push({ role: 'user', content: message });
 
-    this.addMessage(message, 'user');
-    this.elements.userInput.value = '';
-    this.showTypingIndicator();
-
-    // 프론트엔드 상태를 먼저 업데이트합니다.
-    this.state.conversationHistory.push({ role: 'user', content: message });
-
-    try {
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: message, bot_type: this.state.botType }),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-
-      this.addMessage(data.response, 'bot');
-      this.state.conversationHistory.push({ role: 'assistant', content: data.response });
-    } catch (error) {
-      console.error('Error:', error);
-      this.addMessage('죄송합니다, 응답을 받아오는 중 오류가 발생했어요.', 'bot');
-    } finally {
-      this.removeTypingIndicator();
-    }
-  },
-
-  /**
-   * '새 대화' 버튼 클릭을 처리합니다.
-   */
-  async handleNewChat() {
-    if (!confirm('현재 대화를 보관하고 새 대화를 시작하시겠습니까?')) return;
-    try {
-      const response = await fetch('/api/new_chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_type: this.state.botType }),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      this.state.conversationHistory = data.history;
-      this.renderHistory();
-    } catch (error) {
-      alert('새 대화를 시작하는 중 오류가 발생했습니다.');
-    }
-  },
-
-  /**
-   * 과거 대화 목록 모달을 열고 데이터를 불러옵니다.
-   */
-  async openPastChatsModal() {
-    try {
-      const response = await fetch(`/api/past_chats?bot_type=${this.state.botType}`);
-      const chats = await response.json();
-      const listContainer = this.elements.pastChatsList;
-      listContainer.innerHTML = '';
-
-      if (chats.length === 0) {
-        listContainer.innerHTML = '<p>보관된 대화가 없습니다.</p>';
-      } else {
-        chats.forEach(chat => {
-          const itemHTML = `
-              <div class="past-chat-item" data-session-id="${chat.id}">
-                <div class="past-chat-info" data-action="load">
-                  <div class="session-name">${chat.session_name || '이름 없는 대화'}</div>
-                  <div class="session-date">${new Date(chat.created_at).toLocaleString('ko-KR')}</div>
-                </div>
-                <button class="session-delete-btn" data-action="delete" title="대화 삭제" aria-label="대화 삭제">&times;</button>
-              </div>
-            `;
-          listContainer.insertAdjacentHTML('beforeend', itemHTML);
+      try {
+        const response = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: message, bot_type: this.state.botType }),
         });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        this.addMessage(data.response, 'bot');
+        this.state.conversationHistory.push({ role: 'assistant', content: data.response });
+      } catch (error) {
+        console.error('Error:', error);
+        this.addMessage('죄송합니다, 응답을 받아오는 중 오류가 발생했어요.', 'bot');
+      } finally {
+        this.removeTypingIndicator();
       }
-      this.elements.pastChatsModal.style.display = 'flex';
-    } catch (error) {
-      alert('과거 대화 목록을 불러오는 중 오류가 발생했습니다.');
-      console.error('Error fetching past chats:', error);
-    }
-  },
+    },
 
-  /**
-   * 모달 창을 닫습니다.
-   */
-  closeModal() {
-    this.elements.pastChatsModal.style.display = 'none';
-  },
+    /**
+     * '새 대화' 버튼 클릭을 처리합니다.
+     */
+    async handleNewChat() {
+      if (!confirm('현재 대화를 보관하고 새 대화를 시작하시겠습니까?')) return;
+      try {
+        const response = await fetch('/api/new_chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bot_type: this.state.botType }),
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
 
-  /**
-   * 과거 대화 목록의 클릭 이벤트를 위임하여 처리합니다.
-   * @param {Event} e - 클릭 이벤트 객체
-   */
-  handlePastChatClick(e) {
-    // ✨ [수정] 클릭된 요소에서 가장 가까운 'data-action' 속성을 가진 요소를 찾습니다.
-    const actionTarget = e.target.closest('[data-action]');
-    if (!actionTarget) return;
+        // [핵심 수정] 상태와 UI를 모두 업데이트합니다.
+        this.state.conversationHistory = data.history;
+        this.state.sessionId = data.session_id;
+        this.updateAnalysisLink(); // 링크 업데이트 함수 호출
+        this.renderHistory();
 
-    const action = actionTarget.dataset.action;
-    const item = actionTarget.closest('.past-chat-item');
-    if (!item) return;
+      } catch (error) {
+        alert('새 대화를 시작하는 중 오류가 발생했습니다.');
+      }
+    },
 
-    const sessionId = item.dataset.sessionId;
-    if (action === 'load') this.handleLoadChat(sessionId);
-    if (action === 'delete') this.handleDeleteSession(sessionId);
-  },
+    /**
+     * '내 감정 상태 보기' 링크의 href 속성을 업데이트합니다.
+     */
+    updateAnalysisLink() {
+      const analysisLink = this.elements.chatHeader.querySelector('a[href^="/analysis/"]');
+      if (analysisLink) {
+        analysisLink.href = `/analysis/${this.state.sessionId}`;
+      }
+    },
 
-  /**
-   * 선택한 과거 대화를 불러옵니다.
-   * @param {string} sessionId - 불러올 세션의 ID
-   */
-  async handleLoadChat(sessionId) {
-    if (!confirm('이 대화를 불러오시겠습니까? 현재 대화는 보관됩니다.')) return;
-    try {
-      const response = await fetch('/api/load_chat', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_type: this.state.botType, session_id: sessionId }),
-      });
-      const data = await response.json();
-      if (data.error) throw new Error(data.error);
-      this.state.conversationHistory = data.history;
-      this.renderHistory();
-      this.closeModal();
-    } catch (error) {
-      alert('대화를 불러오는 중 오류가 발생했습니다.');
-    }
-  },
+    /**
+     * 과거 대화 목록 모달을 열고 데이터를 불러옵니다.
+     */
+    async openPastChatsModal() {
+      try {
+        const response = await fetch(`/api/past_chats?bot_type=${this.state.botType}`);
+        const chats = await response.json();
+        const listContainer = this.elements.pastChatsList;
+        listContainer.innerHTML = '';
 
-  /**
-   * 선택한 대화 세션을 삭제합니다.
-   * @param {string} sessionId - 삭제할 세션의 ID
-   */
-  async handleDeleteSession(sessionId) {
-    if (!confirm('이 대화 기록을 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
-    try {
-      const response = await fetch('/api/delete_session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ session_id: sessionId }),
-      });
-      const result = await response.json();
-      if (result.status === 'success') {
-        const itemToRemove = this.elements.pastChatsList.querySelector(`[data-session-id="${sessionId}"]`);
-        if (itemToRemove) itemToRemove.remove();
-        if (this.elements.pastChatsList.children.length === 0) {
-          this.elements.pastChatsList.innerHTML = '<p>보관된 대화가 없습니다.</p>';
+        if (chats.length === 0) {
+          listContainer.innerHTML = '<p>보관된 대화가 없습니다.</p>';
+        } else {
+          chats.forEach(chat => {
+            const itemHTML = `
+                <div class="past-chat-item" data-session-id="${chat.id}">
+                  <div class="past-chat-info" data-action="load">
+                    <div class="session-name">${chat.session_name || '이름 없는 대화'}</div>
+                    <div class="session-date">${new Date(chat.created_at).toLocaleString('ko-KR')}</div>
+                  </div>
+                  <button class="session-delete-btn" data-action="delete" title="대화 삭제" aria-label="대화 삭제">&times;</button>
+                </div>
+              `;
+            listContainer.insertAdjacentHTML('beforeend', itemHTML);
+          });
         }
-      } else {
-        alert(result.message || '삭제에 실패했습니다.');
+        this.elements.pastChatsModal.style.display = 'flex';
+      } catch (error) {
+        alert('과거 대화 목록을 불러오는 중 오류가 발생했습니다.');
+        console.error('Error fetching past chats:', error);
       }
-    } catch (error) {
-      alert('대화 삭제 중 오류가 발생했습니다.');
-    }
-  },
+    },
 
-  /**
-   * 메시지 우클릭 시 컨텍스트 메뉴를 표시합니다.
-   */
-  handleMessageContextMenu(e) {
-    const target = e.target.closest('.bot-message');
-    if (!target) return;
+    /**
+     * 모달 창을 닫습니다.
+     */
+    closeModal() {
+      this.elements.pastChatsModal.style.display = 'none';
+    },
 
-    e.preventDefault();
-    this.state.contextMessage = decodeURIComponent(target.dataset.message);
-    const menu = this.elements.contextMenu;
-    menu.style.left = `${e.clientX}px`;
-    menu.style.top = `${e.clientY}px`;
-    menu.style.display = 'block';
-  },
+    /**
+     * 과거 대화 목록의 클릭 이벤트를 위임하여 처리합니다.
+     */
+    handlePastChatClick(e) {
+      const actionTarget = e.target.closest('[data-action]');
+      if (!actionTarget) return;
 
-  /**
-   * 컨텍스트 메뉴의 액션을 처리합니다.
-   */
-  handleContextMenuAction(e) {
-    const action = e.target.closest('[data-action]').dataset.action;
-    if (action === 'save-message') {
-      this.saveMessage(this.state.contextMessage);
-    }
-    this.elements.contextMenu.style.display = 'none';
-  },
+      const action = actionTarget.dataset.action;
+      const item = actionTarget.closest('.past-chat-item');
+      if (!item) return;
 
-  /**
-   * 메시지를 '좋아요' 목록에 저장합니다.
-   * @param {string} text - 저장할 메시지 내용
-   */
-  async saveMessage(text) {
-    try {
-      const response = await fetch('/api/like_message', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ bot_type: this.state.botType, message: text }),
-      });
-      const data = await response.json();
-      alert(data.message || (data.status === 'success' ? '메시지가 저장되었습니다.' : '저장에 실패했습니다.'));
-    } catch (error) {
-      alert('메시지 저장 중 오류가 발생했습니다.');
-    }
-  },
+      const sessionId = item.dataset.sessionId;
+      if (action === 'load') this.handleLoadChat(sessionId);
+      if (action === 'delete') this.handleDeleteSession(sessionId);
+    },
+
+    /**
+     * 선택한 과거 대화를 불러옵니다.
+     */
+    async handleLoadChat(sessionId) {
+      if (!confirm('이 대화를 불러오시겠습니까? 현재 대화는 보관됩니다.')) return;
+      try {
+        const response = await fetch('/api/load_chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bot_type: this.state.botType, session_id: sessionId }),
+        });
+        const data = await response.json();
+        if (data.error) throw new Error(data.error);
+
+        // [핵심 수정] 불러온 대화의 세션 ID도 업데이트합니다.
+        this.state.conversationHistory = data.history;
+        this.state.sessionId = sessionId;
+        this.updateAnalysisLink();
+        this.renderHistory();
+        this.closeModal();
+
+      } catch (error) {
+        alert('대화를 불러오는 중 오류가 발생했습니다.');
+      }
+    },
+
+    /**
+     * 선택한 대화 세션을 삭제합니다.
+     */
+    async handleDeleteSession(sessionId) {
+      if (!confirm('이 대화 기록을 정말로 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
+      try {
+        const response = await fetch('/api/delete_session', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ session_id: sessionId }),
+        });
+        const result = await response.json();
+        if (result.status === 'success') {
+          const itemToRemove = this.elements.pastChatsList.querySelector(`[data-session-id="${sessionId}"]`);
+          if (itemToRemove) itemToRemove.remove();
+          if (this.elements.pastChatsList.children.length === 0) {
+            this.elements.pastChatsList.innerHTML = '<p>보관된 대화가 없습니다.</p>';
+          }
+        } else {
+          alert(result.message || '삭제에 실패했습니다.');
+        }
+      } catch (error) {
+        alert('대화 삭제 중 오류가 발생했습니다.');
+      }
+    },
+
+    /**
+     * 메시지 우클릭 시 컨텍스트 메뉴를 표시합니다.
+     */
+    handleMessageContextMenu(e) {
+      const target = e.target.closest('.bot-message');
+      if (!target) return;
+
+      e.preventDefault();
+      this.state.contextMessage = decodeURIComponent(target.dataset.message);
+      const menu = this.elements.contextMenu;
+      menu.style.left = `${e.clientX}px`;
+      menu.style.top = `${e.clientY}px`;
+      menu.style.display = 'block';
+    },
+
+    /**
+     * 컨텍스트 메뉴의 액션을 처리합니다.
+     */
+    handleContextMenuAction(e) {
+      const action = e.target.closest('[data-action]').dataset.action;
+      if (action === 'save-message') {
+        this.saveMessage(this.state.contextMessage);
+      }
+      this.elements.contextMenu.style.display = 'none';
+    },
+
+    /**
+     * 메시지를 '좋아요' 목록에 저장합니다.
+     */
+    async saveMessage(text) {
+      try {
+        const response = await fetch('/api/like_message', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ bot_type: this.state.botType, message: text }),
+        });
+        const data = await response.json();
+        alert(data.message || (data.status === 'success' ? '메시지가 저장되었습니다.' : '저장에 실패했습니다.'));
+      } catch (error) {
+        alert('메시지 저장 중 오류가 발생했습니다.');
+      }
+    },
   };
 
   // DOM이 완전히 로드된 후 ChatManager를 실행합니다.
