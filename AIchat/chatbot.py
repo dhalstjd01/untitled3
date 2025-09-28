@@ -1,67 +1,76 @@
-# D:/MS/AIChatBot/AIchat/chatbot.py
+# chatbot.py
 
 import os
-from openai import OpenAI
-# emotion_analyzer.py 파일이 프로젝트 폴더에 있다고 가정합니다.
+from dotenv import load_dotenv
+import openai
+
 from emotion_analyzer import EmotionAnalyzer
 from prompts import SCENARIOS
 
 class Chatbot:
     def __init__(self):
-        """챗봇 초기화: OpenAI 클라이언트와 감정 분석기를 준비합니다."""
-        try:
-            self.client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
-            if not self.client.api_key:
-                raise ValueError("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
-        except Exception as e:
-            print(f"❌ OpenAI 클라이언트 초기화 실패: {e}")
-            self.client = None
+        load_dotenv()
+        api_key = os.getenv("OPENAI_API_KEY")
 
-        self.emotion_analyzer = EmotionAnalyzer()
+        if not api_key:
+            raise ValueError("❌ OPENAI_API_KEY를 찾을 수 없습니다. .env 파일에 키를 설정해주세요.")
+
+        try:
+            self.client = openai.OpenAI(api_key=api_key)
+            print("✅ OpenAI 클라이언트 초기화 성공")
+        except Exception as e:
+            print(f"❌ OpenAI 클라이언트 초기화 중 오류 발생: {e}")
+            raise
+
+        try:
+            self.emotion_analyzer = EmotionAnalyzer()
+            print("✅ 감정 분석기 로딩 성공")
+        except Exception as e:
+            print(f"❌ 감정 분석기 로딩 실패: {e}")
+            print("⚠️ 감정 분석 기능 없이 챗봇을 실행합니다. (emotion_analyzer.py 또는 모델 파일 확인 필요)")
+            self.emotion_analyzer = None
 
     def get_response_and_emotion(self, user_input: str, persona_prompt: str, history: list, stage: int) -> tuple[str, str]:
-        """
-        사용자의 상태(stage)에 맞는 대화 전략을 적용하여 응답을 생성하고,
-        분석된 감정을 함께 반환합니다.
-        """
-        if not self.client:
-            return "죄송해요, OpenAI 서비스에 연결할 수 없어요. API 키 설정을 확인해주세요.", "중립"
+        emotion = "분석 불가"
+        if self.emotion_analyzer:
+            try:
+                emotion = self.emotion_analyzer.analyze_emotion(user_input)
+            except Exception as e:
+                print(f"⚠️ 감정 분석 중 오류 발생: {e}")
 
-        # 1. 감정 분석
-        emotion = self.emotion_analyzer.analyze_emotion(user_input)
+        # ⭐ [수정] str() 변환을 제거하여 숫자(int) 키를 그대로 사용합니다.
+        stage_info = SCENARIOS.get(stage, SCENARIOS.get(1))
+        strategy = stage_info.get("strategy", "사용자의 말을 주의 깊게 듣고 공감해주세요.")
 
-        # 2. PHQ-9 단계에 따른 대화 전략 가져오기
-        stage_info = SCENARIOS.get(stage, SCENARIOS[1])
-        strategy = stage_info["strategy"]
-
-        # 3. 최종 시스템 프롬프트 조립
         final_system_prompt = (
             f"### 현재 대화 전략 (사용자 상태 단계: {stage})\n"
             f"{strategy}\n\n"
             f"---\n\n"
+            f"### 챗봇 페르소나\n"
             f"{persona_prompt}"
         )
 
-        # 4. API에 보낼 메시지 목록 생성 (사용자의 마지막 메시지 포함)
         messages_for_api = [
                                {"role": "system", "content": final_system_prompt}
                            ] + history
 
         try:
-            # 5. OpenAI API 호출
             response = self.client.chat.completions.create(
                 model="gpt-4o",
                 messages=messages_for_api,
                 temperature=0.8,
+                max_tokens=1024,
             )
             bot_response = response.choices[0].message.content
-            return bot_response, emotion  # 답변과 감정을 튜플로 반환
+            return bot_response, emotion
 
+        except openai.APIError as e:
+            print(f"❌ OpenAI API 오류 발생: {e}")
+            return "죄송해요, 지금 OpenAI 서비스에 문제가 있는 것 같아요. 잠시 후 다시 시도해주세요.", emotion
         except Exception as e:
-            print(f"❌ OpenAI API 호출 중 오류 발생: {e}")
-            return "죄송해요, 지금은 제 생각을 정리하기가 조금 힘드네요. 다시 말씀해주시겠어요?", "중립"
+            print(f"❌ 응답 생성 중 알 수 없는 오류 발생: {e}")
+            return "죄송해요, 지금은 제 생각을 정리하기가 조금 힘드네요. 다시 말씀해주시겠어요?", emotion
 
     def get_response(self, user_input: str, persona_prompt: str, history: list, stage: int) -> str:
-        """기존 get_response는 하위 호환성을 위해 유지합니다."""
         bot_response, _ = self.get_response_and_emotion(user_input, persona_prompt, history, stage)
         return bot_response

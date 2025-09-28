@@ -34,8 +34,11 @@ PERSONAS = {
 }
 
 def get_stage_from_score(score):
+    """PHQ-9 점수에 따라 사용자 단계를 1, 2, 3, 4로 반환하는 함수"""
+    if score <= 4: return 1
     if score <= 9: return 2
-    return 3
+    if score <= 19: return 3
+    return 4
 
 @app.route("/")
 def index():
@@ -102,7 +105,16 @@ def api_chat():
     if 'user_id' not in session:
         return jsonify({"error": "로그인이 필요합니다."}), 401
 
-    data = request.json
+    try:
+        data = request.get_json()
+        if data is None:
+            raise ValueError("No JSON data received or Content-Type is not application/json")
+    except Exception as e:
+        raw_data = request.get_data(as_text=True)
+        print(f"❌ JSON 디코딩 실패: {e}")
+        print(f"➡️ 원본 데이터(RAW DATA) 수신 내용: {raw_data}")
+        return jsonify({"error": "잘못된 요청 형식입니다. 서버 로그를 확인해주세요."}), 400
+
     user_message = data.get("message", "").strip()
     bot_type = data.get("bot_type")
     user_id = session['user_id']
@@ -159,7 +171,6 @@ def api_chat():
                 bot_response = f"마음 상태를 꾸준히 점검하려는 마음, 정말 멋져요. 다만, 의미 있는 변화를 관찰하기 위해 다음 검사는 **{eligible_date_str}**에 진행하는 것이 좋겠습니다. 그때까지는 제가 곁에서 당신의 이야기를 들을게요. 😌"
 
             conn.execute("DELETE FROM messages WHERE id = ?", (last_message_id,))
-            conn.commit()
             conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'assistant', bot_response))
             conn.commit()
             return jsonify({"response": bot_response})
@@ -179,7 +190,6 @@ def api_chat():
                 question_text = PHQ9_QUESTIONS[0]['question']
                 options_text = "\n\n(답변: 1. 전혀 없음 / 2. 며칠 동안 / 3. 일주일 이상 / 4. 거의 매일)"
                 if bot_type == 'ho':
-
                     intro_text = "안녕! 나는 너의 활기찬 친구 호야! 🐯\n\n본격적으로 이야기하기 전에, 간단한 마음 건강 체크부터 시작해보자! 어렵지 않으니 금방 끝날 거야."
                 else: # ung
                     intro_text = "안녕하세요. 당신의 곁에서 든든한 힘이 되어줄 웅입니다. 🐻\n\n대화를 시작하기에 앞서, 잠시 당신의 마음 상태를 점검하는 시간을 갖겠습니다. 차분히 답변해주세요."
@@ -254,7 +264,6 @@ def api_chat():
         if conn:
             conn.close()
 
-# ... (이하 다른 라우트 함수들은 변경 사항 없음) ...
 @app.route("/api/new_chat", methods=["POST"])
 def new_chat():
     user_id = session['user_id']
