@@ -17,7 +17,7 @@ class Chatbot:
             self.client = None
 
         self.emotion_analyzer = EmotionAnalyzer()
-        # --- [수정] ScenarioManager를 초기화하고 self.scenario_manager에 할당합니다. ---
+        # --- [수정] ScenarioManager를 초기화하고 self.scenario_manager에 할당합니다!. ---
         self.scenario_manager = ScenarioManager(SCENARIOS)
 
     def get_response_and_emotion(self, user_input: str, persona_prompt: str, history: list, stage: int, pre_analyzed_emotion: str = None):

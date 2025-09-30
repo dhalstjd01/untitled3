@@ -257,7 +257,7 @@ def api_chat():
                 (session_id,)
             ).fetchone()[0]
 
-            # 첫 사용자 메시지인지 확인 (인사말 제외)
+            # 첫 사용자 메시지인지 확인 (인사말 제외)!
             user_message_count = conn.execute("SELECT COUNT(*) FROM messages WHERE session_id = ? AND role = 'user'", (session_id,)).fetchone()[0]
 
             if user_message_count == 1:
