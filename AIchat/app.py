@@ -1,4 +1,4 @@
-# app.py
+# C:/Users/3014m/Downloads/AIChatBot (2)/untitled3/AIchat/app.py
 
 import random
 import sqlite3
@@ -9,8 +9,8 @@ from dotenv import load_dotenv
 from chatbot import Chatbot
 from prompts import (
     PERSONA_HO_PROMPT, PERSONA_UNG_PROMPT, GREETINGS_HO, GREETINGS_UNG,
-    PHQ9_INTRO_HO, PHQ9_INTRO_UNG, PHQ9_COOLDOWN_HO, PHQ9_COOLDOWN_UNG,
-    PHQ9_COMPLETE_HO, PHQ9_COMPLETE_UNG, PHQ9_QUESTIONS, SCENARIOS
+    PHQ9_COOLDOWN_HO, PHQ9_COOLDOWN_UNG, PHQ9_COMPLETE_HO, PHQ9_COMPLETE_UNG,
+    PHQ9_QUESTIONS, PHQ9_OPTIONS_PROMPT, SCENARIOS
 )
 from datetime import datetime, timedelta
 
@@ -138,7 +138,16 @@ def favorites():
 def api_chat():
     if 'user_id' not in session: return jsonify({"error": "로그인이 필요합니다."}), 401
 
-    data = request.json
+    try:
+        data = request.get_json()
+        if data is None:
+            raise ValueError("No JSON data received or Content-Type is not application/json")
+    except Exception as e:
+        raw_data = request.get_data(as_text=True)
+        print(f"❌ JSON 디코딩 실패: {e}")
+        print(f"➡️ 원본 데이터(RAW DATA) 수신 내용: {raw_data}")
+        return jsonify({"error": "잘못된 요청 형식입니다. 서버 로그를 확인해주세요."}), 400
+
     user_message = data.get("message", "").strip()
     bot_type = data.get("bot_type")
     user_id = session['user_id']
@@ -153,6 +162,7 @@ def api_chat():
         session_id = active_session['id']
 
         is_cooldown_active = False
+        eligible_ts = None
         latest_phq_session = conn.execute('SELECT next_phq_eligible_timestamp FROM chat_sessions WHERE user_id = ? AND next_phq_eligible_timestamp IS NOT NULL ORDER BY last_phq_timestamp DESC LIMIT 1', (user_id,)).fetchone()
 
         if latest_phq_session:
@@ -177,27 +187,46 @@ def api_chat():
         conn.commit()
 
         phq_completed = bool(active_session['phq_completed'])
+
         if not phq_completed and not is_cooldown_active and user_requests_test:
-            question_text = PHQ9_QUESTIONS[0]['question']
-            options_text = "\n\n(답변: 1. 전혀 없음 / 2. 며칠 동안 / 3. 일주일 이상 / 4. 거의 매일)"
-            intro_text = PHQ9_INTRO_HO if bot_type == 'ho' else PHQ9_INTRO_UNG
-            bot_response = f"{intro_text}\n\n{question_text}{options_text}"
+            first_question = PHQ9_QUESTIONS[0]
+            if bot_type == 'ho':
+                intro_text = "안녕! 나는 너의 활기찬 친구 호야! 🐯\n\n본격적으로 이야기하기 전에, 요즘 어떻게 지내는지 좀 알려주라! 가끔은 뭘 해도 그냥 그럴 때가 있잖아."
+                question_text = first_question['question_ho']
+                options_text = PHQ9_OPTIONS_PROMPT['ho']
+            else: # '웅' 또는 예외상황 시 '웅'을 기본으로
+                intro_text = "안녕하세요. 당신의 곁에서 든든한 힘이 되어줄 웅입니다. 🐻\n\n대화를 시작하기에 앞서, 당신의 마음에 대해 조금 더 깊이 알아보기 위해 몇 가지 질문을 드려도 괜찮을까요? 차분히 지난 2주를 한번 떠올려보죠."
+                question_text = first_question['question_ung']
+                options_text = PHQ9_OPTIONS_PROMPT['ung']
+            bot_response = f"{intro_text}\n\n{question_text}\n\n{options_text}"
 
         elif not phq_completed:
             is_numeric_answer = user_message in ["1", "2", "3", "4"]
             phq_answers_count = conn.execute("SELECT COUNT(*) FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4')", (session_id,)).fetchone()[0]
 
             if is_numeric_answer:
-                if phq_answers_count < len(PHQ9_QUESTIONS):
-                    bot_response = f"{PHQ9_QUESTIONS[phq_answers_count]['question']}\n\n(답변: 1. 전혀 없음 / 2. 며칠 동안 / 3. 일주일 이상 / 4. 거의 매일)"
-                else:
-                    answers = [row['content'] for row in conn.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4') ORDER BY created_at ASC", (session_id,)).fetchall()]
-                    score = sum(PHQ9_QUESTIONS[i]['options'][ans] for i, ans in enumerate(answers))
-                    user_stage = get_stage_from_score(score)
-                    now_dt = datetime.now()
-                    delta = timedelta(weeks=2) if user_stage in ["3", "4"] else timedelta(weeks=4)
-                    conn.execute('UPDATE chat_sessions SET phq_completed = 1, user_stage = ?, last_phq_timestamp = ?, next_phq_eligible_timestamp = ? WHERE id = ?', (user_stage, now_dt.timestamp(), (now_dt + delta).timestamp(), session_id))
-                    bot_response = PHQ9_COMPLETE_HO if bot_type == 'ho' else PHQ9_COMPLETE_UNG
+                if phq_answers_count > 0:
+                    # ⭐ [수정] 중간 멘트(lead_in_text) 생성 로직을 제거했습니다.
+                    current_q_index = phq_answers_count - 1
+                    if current_q_index < len(PHQ9_QUESTIONS):
+                        next_question = PHQ9_QUESTIONS[current_q_index]
+
+                        if bot_type == 'ho':
+                            question_text = next_question['question_ho']
+                            options_text = PHQ9_OPTIONS_PROMPT['ho']
+                        else: # '웅' 또는 예외상황 시 '웅'을 기본으로
+                            question_text = next_question['question_ung']
+                            options_text = PHQ9_OPTIONS_PROMPT['ung']
+
+                        bot_response = f"{question_text}\n\n{options_text}"
+                    else: # 모든 질문 완료
+                        answers = [row['content'] for row in conn.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4') ORDER BY created_at ASC", (session_id,)).fetchall()]
+                        score = sum(PHQ9_QUESTIONS[i]['options'][ans] for i, ans in enumerate(answers))
+                        user_stage = get_stage_from_score(score)
+                        now_dt = datetime.now()
+                        delta = timedelta(weeks=2) if user_stage in ["3", "4"] else timedelta(weeks=4)
+                        conn.execute('UPDATE chat_sessions SET phq_completed = 1, user_stage = ?, last_phq_timestamp = ?, next_phq_eligible_timestamp = ? WHERE id = ?', (user_stage, now_dt.timestamp(), (now_dt + delta).timestamp(), session_id))
+                        bot_response = PHQ9_COMPLETE_HO if bot_type == 'ho' else PHQ9_COMPLETE_UNG
 
             elif phq_answers_count > 0:
                 bot_response = "앗, 1, 2, 3, 4 중 하나의 숫자로만 골라줄 수 있을까?"
