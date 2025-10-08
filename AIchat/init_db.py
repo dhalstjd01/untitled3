@@ -1,5 +1,3 @@
-# C:/Users/3014m/Downloads/AIChatBot (2)/untitled3/AIchat/init_db.py
-
 import sqlite3
 
 # 데이터베이스 연결 (파일이 없으면 새로 생성됨)
@@ -14,15 +12,14 @@ cursor.execute('''
                )
                ''')
 
-# 2. 대화 '세션' 정보 저장 테이블
-# ⭐ 재검사 주기 관리를 위한 timestamp 컬럼 2개 추가
+# 2. 대화 '세션' 정보 저장 테이블 (재검사 주기 관리를 위한 timestamp 컬럼 2개 포함)
 cursor.execute('''
                CREATE TABLE IF NOT EXISTS chat_sessions (
                                                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                             user_id INTEGER NOT NULL,
                                                             bot_type TEXT NOT NULL,
                                                             phq_completed INTEGER NOT NULL DEFAULT 0,
-                                                            user_stage INTEGER NOT NULL DEFAULT 1,
+                                                            user_stage TEXT DEFAULT '1',
                                                             session_name TEXT,
                                                             last_phq_timestamp REAL,
                                                             next_phq_eligible_timestamp REAL,
