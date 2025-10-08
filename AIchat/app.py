@@ -1,4 +1,4 @@
-# C:/Users/3014m/Downloads/AIChatBot (2)/untitled3/AIchat/app.py
+# C:/.../AIchat/app.py
 
 import random
 import sqlite3
@@ -90,6 +90,7 @@ def chat(bot_type):
         initial_history=json.dumps(initial_history, ensure_ascii=False)
     )
 
+# ⭐ [추가] 빠져있던 analysis 페이지 라우트 함수를 추가했습니다.
 @app.route('/analysis/<int:session_id>')
 def analysis(session_id):
     if 'user_id' not in session: return "로그인이 필요합니다.", 401
@@ -104,11 +105,10 @@ def analysis(session_id):
 
         most_common_emotion_text = "아직 분석할 대화가 충분하지 않습니다."
         if user_emotions:
-            recent_emotions = user_emotions[-20:]
-            emotion_counts = Counter(recent_emotions)
+            emotion_counts = Counter(user_emotions)
             if emotion_counts:
                 most_common = emotion_counts.most_common(1)[0][0]
-                most_common_emotion_text = f'최근 20개 대화에서 당신의 주된 감정은 **"{most_common}"** 입니다.'
+                most_common_emotion_text = f'이 대화에서 당신의 주된 감정은 **"{most_common}"** 입니다.'
 
         emotion_distribution = Counter(user_emotions)
         chart_data = {
@@ -161,76 +161,67 @@ def api_chat():
         if not active_session: return jsonify({"error": "활성 채팅 세션을 찾을 수 없습니다."}), 404
         session_id = active_session['id']
 
-        is_cooldown_active = False
-        eligible_ts = None
-        latest_phq_session = conn.execute('SELECT next_phq_eligible_timestamp FROM chat_sessions WHERE user_id = ? AND next_phq_eligible_timestamp IS NOT NULL ORDER BY last_phq_timestamp DESC LIMIT 1', (user_id,)).fetchone()
-
-        if latest_phq_session:
-            now_ts = datetime.now().timestamp()
-            eligible_ts = latest_phq_session['next_phq_eligible_timestamp']
-            if now_ts < eligible_ts:
-                is_cooldown_active = True
-
-        bot_response = None
-        trigger_keywords = ["검사", "진단", "테스트", "설문", "phq"]
-        user_requests_test = any(keyword in user_message.lower() for keyword in trigger_keywords)
-
-        if is_cooldown_active and user_requests_test:
-            eligible_date_str = datetime.fromtimestamp(eligible_ts).strftime('%Y년 %m월 %d일')
-            bot_response = PHQ9_COOLDOWN_HO.format(eligible_date=eligible_date_str) if bot_type == 'ho' else PHQ9_COOLDOWN_UNG.format(eligible_date=eligible_date_str)
-            conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'assistant', bot_response))
-            conn.commit()
-            return jsonify({"response": bot_response})
-
+        # --- 1. 사용자 메시지 DB 저장 ---
         conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'user', user_message))
         last_user_message_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
 
+        # --- 2. 재검사 기간 확인 ---
+        latest_phq_session = conn.execute('SELECT next_phq_eligible_timestamp FROM chat_sessions WHERE user_id = ? AND next_phq_eligible_timestamp IS NOT NULL ORDER BY last_phq_timestamp DESC LIMIT 1', (user_id,)).fetchone()
+        is_cooldown_active = False
+        if latest_phq_session:
+            if datetime.now().timestamp() < latest_phq_session['next_phq_eligible_timestamp']:
+                is_cooldown_active = True
+
+        # --- 3. 챗봇 응답 결정 로직 ---
+        bot_response = None
         phq_completed = bool(active_session['phq_completed'])
 
-        if not phq_completed and not is_cooldown_active and user_requests_test:
-            first_question = PHQ9_QUESTIONS[0]
-            if bot_type == 'ho':
-                intro_text = "안녕! 나는 너의 활기찬 친구 호야! 🐯\n\n본격적으로 이야기하기 전에, 요즘 어떻게 지내는지 좀 알려주라! 가끔은 뭘 해도 그냥 그럴 때가 있잖아."
-                question_text = first_question['question_ho']
-                options_text = PHQ9_OPTIONS_PROMPT['ho']
-            else: # '웅' 또는 예외상황 시 '웅'을 기본으로
-                intro_text = "안녕하세요. 당신의 곁에서 든든한 힘이 되어줄 웅입니다. 🐻\n\n대화를 시작하기에 앞서, 당신의 마음에 대해 조금 더 깊이 알아보기 위해 몇 가지 질문을 드려도 괜찮을까요? 차분히 지난 2주를 한번 떠올려보죠."
-                question_text = first_question['question_ung']
-                options_text = PHQ9_OPTIONS_PROMPT['ung']
-            bot_response = f"{intro_text}\n\n{question_text}\n\n{options_text}"
+        # --- 3-1. PHQ-9 설문 로직 ---
+        if not phq_completed:
+            trigger_keywords = ["검사", "진단", "테스트", "설문", "phq"]
+            user_requests_test = any(keyword in user_message.lower() for keyword in trigger_keywords)
 
-        elif not phq_completed:
-            is_numeric_answer = user_message in ["1", "2", "3", "4"]
             phq_answers_count = conn.execute("SELECT COUNT(*) FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4')", (session_id,)).fetchone()[0]
+            is_test_in_progress = phq_answers_count > 0
+            is_numeric_answer = user_message in ["1", "2", "3", "4"]
 
-            if is_numeric_answer:
-                if phq_answers_count > 0:
-                    # ⭐ [수정] 중간 멘트(lead_in_text) 생성 로직을 제거했습니다.
-                    current_q_index = phq_answers_count - 1
-                    if current_q_index < len(PHQ9_QUESTIONS):
-                        next_question = PHQ9_QUESTIONS[current_q_index]
+            if is_cooldown_active and user_requests_test:
+                eligible_date_str = datetime.fromtimestamp(latest_phq_session['next_phq_eligible_timestamp']).strftime('%Y년 %m월 %d일')
+                bot_response = PHQ9_COOLDOWN_HO.format(eligible_date=eligible_date_str) if bot_type == 'ho' else PHQ9_COOLDOWN_UNG.format(eligible_date=eligible_date_str)
 
-                        if bot_type == 'ho':
-                            question_text = next_question['question_ho']
-                            options_text = PHQ9_OPTIONS_PROMPT['ho']
-                        else: # '웅' 또는 예외상황 시 '웅'을 기본으로
-                            question_text = next_question['question_ung']
-                            options_text = PHQ9_OPTIONS_PROMPT['ung']
+            elif user_requests_test and not is_cooldown_active and not is_test_in_progress:
+                first_question = PHQ9_QUESTIONS[0]
+                if bot_type == 'ho':
+                    intro_text = "안녕! 나는 너의 활기찬 친구 호야! 🐯\n\n본격적으로 이야기하기 전에, 요즘 어떻게 지내는지 좀 알려주라! 가끔은 뭘 해도 그냥 그럴 때가 있잖아."
+                    question_text = first_question['question_ho']
+                    options_text = PHQ9_OPTIONS_PROMPT['ho']
+                else:
+                    intro_text = "안녕하세요. 당신의 곁에서 든든한 힘이 되어줄 웅입니다. 🐻\n\n대화를 시작하기에 앞서, 당신의 마음에 대해 조금 더 깊이 알아보기 위해 몇 가지 질문을 드려도 괜찮을까요? 차분히 지난 2주를 한번 떠올려보죠."
+                    question_text = first_question['question_ung']
+                    options_text = PHQ9_OPTIONS_PROMPT['ung']
+                bot_response = f"{intro_text}\n\n{question_text}\n\n{options_text}"
 
-                        bot_response = f"{question_text}\n\n{options_text}"
-                    else: # 모든 질문 완료
-                        answers = [row['content'] for row in conn.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4') ORDER BY created_at ASC", (session_id,)).fetchall()]
-                        score = sum(PHQ9_QUESTIONS[i]['options'][ans] for i, ans in enumerate(answers))
-                        user_stage = get_stage_from_score(score)
-                        now_dt = datetime.now()
-                        delta = timedelta(weeks=2) if user_stage in ["3", "4"] else timedelta(weeks=4)
-                        conn.execute('UPDATE chat_sessions SET phq_completed = 1, user_stage = ?, last_phq_timestamp = ?, next_phq_eligible_timestamp = ? WHERE id = ?', (user_stage, now_dt.timestamp(), (now_dt + delta).timestamp(), session_id))
-                        bot_response = PHQ9_COMPLETE_HO if bot_type == 'ho' else PHQ9_COMPLETE_UNG
+            elif is_test_in_progress and is_numeric_answer:
+                current_q_index = phq_answers_count - 1
+                if current_q_index < len(PHQ9_QUESTIONS):
+                    next_question = PHQ9_QUESTIONS[current_q_index]
+                    question_text = next_question['question_ho'] if bot_type == 'ho' else next_question['question_ung']
+                    options_text = PHQ9_OPTIONS_PROMPT['ho'] if bot_type == 'ho' else PHQ9_OPTIONS_PROMPT['ung']
+                    bot_response = f"{question_text}\n\n{options_text}"
+                else:
+                    answers = [row['content'] for row in conn.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4') ORDER BY created_at ASC", (session_id,)).fetchall()]
+                    score = sum(PHQ9_QUESTIONS[i]['options'][ans] for i, ans in enumerate(answers))
+                    user_stage = get_stage_from_score(score)
+                    now_dt = datetime.now()
+                    delta = timedelta(weeks=2) if user_stage in ["3", "4"] else timedelta(weeks=4)
+                    conn.execute('UPDATE chat_sessions SET phq_completed = 1, user_stage = ?, last_phq_timestamp = ?, next_phq_eligible_timestamp = ? WHERE id = ?', (user_stage, now_dt.timestamp(), (now_dt + delta).timestamp(), session_id))
+                    bot_response = PHQ9_COMPLETE_HO if bot_type == 'ho' else PHQ9_COMPLETE_UNG
 
-            elif phq_answers_count > 0:
+            elif is_test_in_progress and not is_numeric_answer:
                 bot_response = "앗, 1, 2, 3, 4 중 하나의 숫자로만 골라줄 수 있을까?"
 
+        # --- 3-2. 일반 대화 로직 ---
         if bot_response is None:
             history = [dict(row) for row in conn.execute('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC', (session_id,)).fetchall()]
             user_stage = active_session['user_stage'] if active_session['user_stage'] else "1"
@@ -238,6 +229,7 @@ def api_chat():
             if detected_emotion and detected_emotion != "분석실패":
                 conn.execute('UPDATE messages SET emotion = ? WHERE id = ?', (detected_emotion, last_user_message_id))
 
+        # --- 4. 봇 응답 저장 및 반환 ---
         conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'assistant', bot_response))
         if active_session['session_name'] == "새로운 대화":
             conn.execute('UPDATE chat_sessions SET session_name = ? WHERE id = ?', (user_message[:50], session_id))

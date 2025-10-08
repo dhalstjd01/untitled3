@@ -1,4 +1,7 @@
+# C:/.../AIchat/emotion_analyzer.py
+
 from transformers import AutoModelForSequenceClassification, AutoTokenizer, pipeline
+
 class EmotionAnalyzer:
     def __init__(self):
         try:
@@ -14,18 +17,20 @@ class EmotionAnalyzer:
             print(f"❌ 감정 분석기 로딩 실패: {e}")
             self.classifier = None
 
-    def analyze_emotion(self, text: str) -> str:
+    def analyze_emotion(self, text: str) -> dict or None:
+        """
+        주어진 텍스트의 감정을 분석하여 라벨과 점수가 포함된 딕셔너리를 반환합니다.
+        분석 실패 시 None을 반환합니다.
+        """
         if not self.classifier:
-            return "분석실패"
+            return None
 
         try:
             result = self.classifier(text)
-            #print("분석 원본 결과:", result)  # 감정 분석 원본 결과만 출력
-
-            label = result[0]['label']
-            return label  # 라벨 그대로 반환
+            # ⭐ [수정] 결과가 있을 경우, 라벨과 점수가 담긴 첫 번째 딕셔너리를 그대로 반환
+            if result:
+                return result[0]
+            return None
         except Exception as e:
             print(f"❌ 감정 분석 중 오류: {e}")
-            return "분석실패"
-
-
+            return None
