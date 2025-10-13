@@ -90,7 +90,6 @@ def chat(bot_type):
         initial_history=json.dumps(initial_history, ensure_ascii=False)
     )
 
-# ⭐ [추가] 빠져있던 analysis 페이지 라우트 함수를 추가했습니다.
 @app.route('/analysis/<int:session_id>')
 def analysis(session_id):
     if 'user_id' not in session: return "로그인이 필요합니다.", 401
@@ -140,13 +139,10 @@ def api_chat():
 
     try:
         data = request.get_json()
-        if data is None:
-            raise ValueError("No JSON data received or Content-Type is not application/json")
+        if data is None: raise ValueError("No JSON data")
     except Exception as e:
-        raw_data = request.get_data(as_text=True)
         print(f"❌ JSON 디코딩 실패: {e}")
-        print(f"➡️ 원본 데이터(RAW DATA) 수신 내용: {raw_data}")
-        return jsonify({"error": "잘못된 요청 형식입니다. 서버 로그를 확인해주세요."}), 400
+        return jsonify({"error": "잘못된 요청 형식입니다."}), 400
 
     user_message = data.get("message", "").strip()
     bot_type = data.get("bot_type")
@@ -161,26 +157,26 @@ def api_chat():
         if not active_session: return jsonify({"error": "활성 채팅 세션을 찾을 수 없습니다."}), 404
         session_id = active_session['id']
 
-        # --- 1. 사용자 메시지 DB 저장 ---
         conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'user', user_message))
         last_user_message_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
 
-        # --- 2. 재검사 기간 확인 ---
+        history = [dict(row) for row in conn.execute('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC', (session_id,)).fetchall()]
+
         latest_phq_session = conn.execute('SELECT next_phq_eligible_timestamp FROM chat_sessions WHERE user_id = ? AND next_phq_eligible_timestamp IS NOT NULL ORDER BY last_phq_timestamp DESC LIMIT 1', (user_id,)).fetchone()
         is_cooldown_active = False
-        if latest_phq_session:
-            if datetime.now().timestamp() < latest_phq_session['next_phq_eligible_timestamp']:
-                is_cooldown_active = True
+        if latest_phq_session and datetime.now().timestamp() < latest_phq_session['next_phq_eligible_timestamp']:
+            is_cooldown_active = True
 
-        # --- 3. 챗봇 응답 결정 로직 ---
         bot_response = None
         phq_completed = bool(active_session['phq_completed'])
 
-        # --- 3-1. PHQ-9 설문 로직 ---
         if not phq_completed:
             trigger_keywords = ["검사", "진단", "테스트", "설문", "phq"]
             user_requests_test = any(keyword in user_message.lower() for keyword in trigger_keywords)
+
+            # ⭐ [수정 1] 최초 메시지인지 확인하는 로직 추가
+            is_first_user_message = sum(1 for msg in history if msg['role'] == 'user') == 1
 
             phq_answers_count = conn.execute("SELECT COUNT(*) FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4')", (session_id,)).fetchone()[0]
             is_test_in_progress = phq_answers_count > 0
@@ -190,7 +186,8 @@ def api_chat():
                 eligible_date_str = datetime.fromtimestamp(latest_phq_session['next_phq_eligible_timestamp']).strftime('%Y년 %m월 %d일')
                 bot_response = PHQ9_COOLDOWN_HO.format(eligible_date=eligible_date_str) if bot_type == 'ho' else PHQ9_COOLDOWN_UNG.format(eligible_date=eligible_date_str)
 
-            elif user_requests_test and not is_cooldown_active and not is_test_in_progress:
+            # ⭐ [수정 2] 검사 시작 조건을 '최초 메시지' 또는 '사용자 요청'으로 변경
+            elif (is_first_user_message or user_requests_test) and not is_cooldown_active and not is_test_in_progress:
                 first_question = PHQ9_QUESTIONS[0]
                 if bot_type == 'ho':
                     intro_text = "안녕! 나는 너의 활기찬 친구 호야! 🐯\n\n본격적으로 이야기하기 전에, 요즘 어떻게 지내는지 좀 알려주라! 가끔은 뭘 해도 그냥 그럴 때가 있잖아."
@@ -202,14 +199,17 @@ def api_chat():
                     options_text = PHQ9_OPTIONS_PROMPT['ung']
                 bot_response = f"{intro_text}\n\n{question_text}\n\n{options_text}"
 
+            # ⭐ [수정 3] 9번째 답변 후 오류를 해결하기 위해 로직 전체 수정
             elif is_test_in_progress and is_numeric_answer:
-                current_q_index = phq_answers_count - 1
-                if current_q_index < len(PHQ9_QUESTIONS):
-                    next_question = PHQ9_QUESTIONS[current_q_index]
+                # 현재 답변까지 포함하여 총 몇 개의 숫자 답변이 있는지 다시 카운트
+                total_answers = phq_answers_count
+
+                if total_answers < 9: # 아직 질문이 남았을 경우
+                    next_question = PHQ9_QUESTIONS[total_answers] # 다음 질문의 인덱스는 답변 개수와 동일
                     question_text = next_question['question_ho'] if bot_type == 'ho' else next_question['question_ung']
                     options_text = PHQ9_OPTIONS_PROMPT['ho'] if bot_type == 'ho' else PHQ9_OPTIONS_PROMPT['ung']
                     bot_response = f"{question_text}\n\n{options_text}"
-                else:
+                else: # 9개의 답변이 모두 완료된 경우
                     answers = [row['content'] for row in conn.execute("SELECT content FROM messages WHERE session_id = ? AND role = 'user' AND content IN ('1', '2', '3', '4') ORDER BY created_at ASC", (session_id,)).fetchall()]
                     score = sum(PHQ9_QUESTIONS[i]['options'][ans] for i, ans in enumerate(answers))
                     user_stage = get_stage_from_score(score)
@@ -221,15 +221,12 @@ def api_chat():
             elif is_test_in_progress and not is_numeric_answer:
                 bot_response = "앗, 1, 2, 3, 4 중 하나의 숫자로만 골라줄 수 있을까?"
 
-        # --- 3-2. 일반 대화 로직 ---
         if bot_response is None:
-            history = [dict(row) for row in conn.execute('SELECT role, content FROM messages WHERE session_id = ? ORDER BY created_at ASC', (session_id,)).fetchall()]
             user_stage = active_session['user_stage'] if active_session['user_stage'] else "1"
             bot_response, detected_emotion = chatbot_instance.get_response_and_emotion(user_input=user_message, persona_prompt=PERSONAS[bot_type]["prompt"], history=history, stage=user_stage)
             if detected_emotion and detected_emotion != "분석실패":
                 conn.execute('UPDATE messages SET emotion = ? WHERE id = ?', (detected_emotion, last_user_message_id))
 
-        # --- 4. 봇 응답 저장 및 반환 ---
         conn.execute("INSERT INTO messages (session_id, role, content) VALUES (?, ?, ?)", (session_id, 'assistant', bot_response))
         if active_session['session_name'] == "새로운 대화":
             conn.execute('UPDATE chat_sessions SET session_name = ? WHERE id = ?', (user_message[:50], session_id))
