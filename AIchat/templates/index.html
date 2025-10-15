@@ -5,7 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 친구 선택하기</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
+
+        /* --- 기본 스타일 --- */
         body {
             font-family: 'Noto Sans KR', sans-serif;
             background-color: #f0f2f5;
@@ -38,6 +40,8 @@
             gap: 40px;
             flex-wrap: wrap;
         }
+
+        /* --- 기존 캐릭터 카드 스타일 --- */
         .character-card {
             background: white;
             border-radius: 16px;
@@ -52,6 +56,8 @@
             flex-direction: column;
             align-items: center;
             gap: 15px;
+            position: relative;
+            cursor: pointer;
         }
         .character-card:hover {
             transform: translateY(-10px);
@@ -84,7 +90,6 @@
             line-height: 1.6;
             min-height: 80px;
         }
-        /* ✨ [수정] 버튼 스타일 변경 */
         .top-right-button {
             position: absolute;
             top: 25px;
@@ -98,39 +103,216 @@
             font-size: 0.9em;
             transition: background-color 0.3s;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            z-index: 100;
         }
         .top-right-button:hover {
             background-color: #5a6268;
         }
+
+        /* ⭐ --- 프로필 모달 스타일 시작 --- */
+        .profile-modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 99;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0s 0.3s;
+            /* ⭐ [수정] 모달 배경 클릭이 방해되지 않도록 설정 */
+            pointer-events: none;
+        }
+
+        .profile-modal-content {
+            background-color: white;
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 90%;
+            /* ⭐ [수정] 모달 너비를 카드와 비슷하게 조정 */
+            max-width: 340px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+            text-align: center; /* 내부 콘텐츠 중앙 정렬 */
+            /* ⭐ [수정] 모달 자체는 클릭 이벤트를 받도록 설정 */
+            pointer-events: auto;
+        }
+
+        .character-card:hover .profile-modal-overlay {
+            opacity: 1;
+            visibility: visible;
+            transition-delay: 0s;
+        }
+        .character-card:hover .profile-modal-content {
+            transform: scale(1);
+        }
+
+        .modal-img {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            margin-bottom: 15px;
+        }
+
+        .modal-title h2 {
+            font-size: 1.8em;
+            margin: 0 0 5px 0;
+            font-weight: 700;
+        }
+        .modal-title p {
+            font-size: 1em;
+            color: #555;
+            margin-bottom: 20px;
+        }
+
+        .modal-body {
+            text-align: left;
+        }
+
+        .modal-section {
+            margin-bottom: 20px;
+        }
+        .modal-section:last-child {
+            margin-bottom: 0;
+        }
+
+        .modal-section h4 {
+            font-size: 1.0em;
+            font-weight: 700;
+            color: #333;
+            margin-bottom: 10px;
+            border-left: 3px solid;
+            padding-left: 8px;
+        }
+
+        .modal-section p {
+            font-size: 0.9em;
+            line-height: 1.7;
+            color: #444;
+            margin: 0;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            justify-content: center;
+            margin-bottom: 20px;
+        }
+
+        .tags span {
+            font-size: 0.8em;
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-weight: 500;
+        }
+
+        /* 캐릭터별 색상 테마 적용 */
+        .profile-modal-content.ho .modal-title h2,
+        .profile-modal-content.ho .modal-section h4 {
+            border-color: #d9534f;
+            color: #d9534f;
+        }
+        .profile-modal-content.ho .tags span {
+            background-color: #fbe9e7;
+            color: #c62828;
+        }
+
+        .profile-modal-content.ung .modal-title h2,
+        .profile-modal-content.ung .modal-section h4 {
+            border-color: #4242c4;
+            color: #4242c4;
+        }
+        .profile-modal-content.ung .tags span {
+            background-color: #e8eaf6;
+            color: #283593;
+        }
+        /* ⭐ --- 프로필 모달 스타일 끝 --- */
+
     </style>
 </head>
 <body>
 
-<!-- ✨ [수정] 버튼 위치를 body 최상단으로 이동하고 클래스 이름 변경 -->
 <a href="/favorites" class="top-right-button">저장한 메시지 보기</a>
 
 <div class="main-container">
     <h1>💬 AI 친구와 대화하기</h1>
     <p class="subtitle">마음이 통하는 단 한 사람, 당신의 이야기를 들어줄 친구를 선택해보세요.</p>
     <div class="character-selection">
-        <!-- 호 캐릭터 카드 -->
+
         <a href="/chat/ho" class="character-card ho">
             <img src="/static/images/profile_ho.png" alt="호 프로필 사진" class="profile-img">
             <div>
                 <h2 class="character-name">활기찬 친구, 호</h2>
                 <p class="character-description">"인생은 신나는 모험! 고민은 깨야 할 퀘스트 같은 거지. 일단 부딪혀보자고!"</p>
             </div>
+
+            <div class="profile-modal-overlay">
+                <div class="profile-modal-content ho">
+                    <img src="/static/images/profile_ho.png" alt="호 프로필 사진" class="modal-img">
+                    <div class="modal-title">
+                        <h2>호 🐯</h2>
+                        <p>24세, 체육교육과 대학생</p>
+                    </div>
+                    <div class="tags">
+                        <span>#긍정파워</span>
+                        <span>#행동파</span>
+                        <span>#고민타파</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-section">
+                            <h4>자기소개</h4>
+                            <p>몸이 움직이면 마음도 따라 움직인다고 믿어! 고민이 있을 땐 일단 나가서 뛰고 보는 거지! 너의 일상에 신나는 활력을 불어넣어 줄게.</p>
+                        </div>
+                        <div class="modal-section">
+                            <h4>이런 분에게 추천해요!</h4>
+                            <p>✔ 무기력해서 새로운 활력이 필요할 때<br>✔ 신나는 대화를 나눌 친구가 필요할 때</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </a>
-        <!-- 웅 캐릭터 카드 -->
+
         <a href="/chat/ung" class="character-card ung">
             <img src="/static/images/profile_ung.png" alt="웅 프로필 사진" class="profile-img">
             <div>
                 <h2 class="character-name">차분한 조언가, 웅</h2>
                 <p class="character-description">"모든 감정엔 저마다의 이유가 있어요. 가만히 들여다보면 그 안에 길이 보입니다."</p>
             </div>
+
+            <div class="profile-modal-overlay">
+                <div class="profile-modal-content ung">
+                    <img src="/static/images/profile_ung.png" alt="웅 프로필 사진" class="modal-img">
+                    <div class="modal-title">
+                        <h2>웅 🐻</h2>
+                        <p>30세, 고등학교 문학 선생님</p>
+                    </div>
+                    <div class="tags">
+                        <span>#깊은공감</span>
+                        <span>#성찰의시간</span>
+                        <span>#좋은리스너</span>
+                    </div>
+                    <div class="modal-body">
+                        <div class="modal-section">
+                            <h4>자기소개</h4>
+                            <p>모든 감정에는 저마다의 이유가 있다고 생각해요. 당신의 마음속 복잡한 실타래를 차분히 함께 풀어가고 싶어요. 당신의 이야기를 기다리겠습니다.</p>
+                        </div>
+                        <div class="modal-section">
+                            <h4>이런 분에게 추천해요!</h4>
+                            <p>✔ 복잡한 마음을 차분히 정리하고 싶을 때<br>✔ 섣부른 조언보다 깊은 공감이 필요할 때</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </a>
     </div>
-    <!-- ✨ [수정] 하단에 있던 버튼 삭제 -->
 </div>
 </body>
 </html>
+
+###테스트
