@@ -121,6 +121,7 @@ body {
     box-sizing: border-box;
 }
 
+
 .user-message {
     background-color: var(--user-message-bg);
     color: var(--text-color-light);
@@ -369,4 +370,27 @@ body {
     background-color: #f8f9fa;
     border-radius: 6px;
     cursor: pointer;
+}
+/* 왼쪽 아래 꼬리 */
+.speech-bubble.left-bottom {
+    position: relative;
+    background: #fff;
+    color: #333;
+    padding: 10px 15px;
+    border-radius: 10px;
+    display: inline-block;
+    max-width: 180px;
+    text-align: center;
+    font-size: 0.9em;
+}
+
+/* 말풍선 꼬리: 왼쪽 아래 */
+.speech-bubble.left-bottom::after {
+    content: "";
+    position: absolute;
+    bottom: -10px;   /* 말풍선 아래쪽 */
+    left: 10px;      /* 왼쪽 끝에서 10px 떨어진 위치 */
+    border-width: 10px 10px 0 0; /* 삼각형 크기 */
+    border-style: solid;
+    border-color: #fff transparent transparent transparent; /* 배경색과 동일 */
 }
