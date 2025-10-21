@@ -1,12 +1,12 @@
-# C:/Users/3014m/Downloads/AIChatBot (2)/untitled3/AIchat/init_db.py
+# C:/.../AIchat/init_db.py
 
 import sqlite3
 
-# 데이터베이스 연결
+# 데이터베이스 연결 (파일이 없으면 새로 생성됨)
 conn = sqlite3.connect('chatbot_likes.db')
 cursor = conn.cursor()
 
-# 1. 사용자 정보 테이블 (기존과 동일)
+# 1. 사용자 정보 테이블
 cursor.execute('''
                CREATE TABLE IF NOT EXISTS users (
                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -14,23 +14,27 @@ cursor.execute('''
                )
                ''')
 
-# 2. 대화 '세션' 정보 저장 테이블 (history_json, emotion_summary_json 컬럼 제거)
-# 각 대화의 메타데이터만 저장합니다.
+# 2. 대화 '세션' 정보 저장 테이블
+# ⭐ [수정] 대화형 설문 진행 상태를 위한 phq_progress와 phq_scores 컬럼 추가
 cursor.execute('''
                CREATE TABLE IF NOT EXISTS chat_sessions (
                                                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                             user_id INTEGER NOT NULL,
                                                             bot_type TEXT NOT NULL,
                                                             phq_completed INTEGER NOT NULL DEFAULT 0,
-                                                            user_stage INTEGER NOT NULL DEFAULT 1,
+                                                            user_stage TEXT DEFAULT '1',
                                                             session_name TEXT,
-                                                            is_active INTEGER NOT NULL DEFAULT 1, -- 1 for active, 0 for archived
+                                                            last_phq_timestamp REAL,
+                                                            next_phq_eligible_timestamp REAL,
+                                                            phq_progress INTEGER DEFAULT -1,
+                                                            phq_scores TEXT,
+                                                            is_active INTEGER NOT NULL DEFAULT 1,
                                                             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                                                             FOREIGN KEY (user_id) REFERENCES users (id)
                    )
                ''')
 
-# 3. 모든 '메시지'와 '감정'을 개별적으로 저장하는 테이블 (핵심)
+# 3. 모든 '메시지'와 '감정'을 개별적으로 저장하는 테이블
 cursor.execute('''
                CREATE TABLE IF NOT EXISTS messages (
                                                        id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -43,7 +47,7 @@ cursor.execute('''
                    )
                ''')
 
-# 4. '좋아요' 누른 메시지 저장 테이블 (기존과 동일)
+# 4. '좋아요' 누른 메시지 저장 테이블
 cursor.execute('''
                CREATE TABLE IF NOT EXISTS liked_messages (
                                                              id INTEGER PRIMARY KEY AUTOINCREMENT,
