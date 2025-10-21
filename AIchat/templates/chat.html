@@ -8,6 +8,8 @@
 </head>
 <body>
 
+<div class="gradient-bg"></div>
+
 <div class="chat-container">
     <div class="chat-layout">
 
@@ -67,13 +69,11 @@
             conversationHistory: JSON.parse({{ initial_history | tojson | safe }}),
     contextMessage: '',
     },
-
     init() {
         this.bindEvents();
         this.renderHistory();
         this.loadSidebarChats();
     },
-
     bindEvents() {
         this.elements.chatForm.addEventListener('submit', this.handleSendMessage.bind(this));
         this.elements.newChatBtn.addEventListener('click', this.handleNewChat.bind(this));
@@ -82,74 +82,62 @@
         window.addEventListener('click', () => this.elements.contextMenu.style.display = 'none');
         this.elements.chatList.addEventListener('click', this.handleSidebarClick.bind(this));
     },
-
     async loadSidebarChats() {
         try {
             const [currentRes, pastRes] = await Promise.all([
                 fetch(`/api/get_session_info?session_id=${this.state.sessionId}`),
                 fetch(`/api/past_chats?bot_type=${this.state.botType}`)
             ]);
+            if (!currentRes.ok || !pastRes.ok) throw new Error('Failed to fetch chat lists');
             const currentChat = await currentRes.json();
             const pastChats = await pastRes.json();
-
             this.elements.chatList.innerHTML = '';
-
             this.addChatItemToSidebar(currentChat, true);
             pastChats.forEach(chat => this.addChatItemToSidebar(chat, false));
         } catch (error) {
             console.error('Error fetching chats:', error);
-            // 오류 발생 시 최소한의 UI라도 그리도록 예외 처리
-            this.elements.chatList.innerHTML = '<li>대화 목록을 불러오는 데 실패했습니다.</li>';
+            this.elements.chatList.innerHTML = '<li>대화 목록 로딩 실패</li>';
         }
     },
-
     addChatItemToSidebar(chat, isActive) {
         const item = document.createElement('li');
         item.className = 'chat-list-item';
         item.dataset.sessionId = chat.id;
         if (isActive) item.classList.add('active');
 
+        // ⭐ [핵심 수정] 삭제 버튼의 텍스트(&times;)를 SVG 아이콘으로 교체
         item.innerHTML = `
             <div class="chat-item-info" data-action="load">
                 <div class="session-name">${chat.session_name || '새로운 대화'}</div>
                 <div class="session-date">${new Date(chat.created_at).toLocaleString('ko-KR', { dateStyle: 'short', timeStyle: 'short' })}</div>
             </div>
-            <button class="session-delete-btn" data-action="delete" title="대화 삭제">&times;</button>
+            <button class="session-delete-btn" data-action="delete" title="대화 삭제">
+                <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+            </button>
         `;
         this.elements.chatList.appendChild(item);
     },
-
     updateActiveChatItem(sessionId) {
         this.elements.chatList.querySelectorAll('.chat-list-item').forEach(item => {
             item.classList.remove('active');
-            if (item.dataset.sessionId === sessionId.toString()) {
-                item.classList.add('active');
-            }
+            if (item.dataset.sessionId === sessionId.toString()) item.classList.add('active');
         });
     },
-
     handleSidebarClick(event) {
         const actionTarget = event.target.closest('[data-action]');
         if (!actionTarget) return;
-
         const action = actionTarget.dataset.action;
         const targetItem = actionTarget.closest('.chat-list-item');
         const sessionId = targetItem.dataset.sessionId;
-
-        if (action === 'load' && sessionId !== this.state.sessionId) {
-            this.handleLoadChat(sessionId);
-        } else if (action === 'delete') {
-            this.handleDeleteSession(sessionId, targetItem);
-        }
+        if (action === 'load' && sessionId !== this.state.sessionId) this.handleLoadChat(sessionId);
+        else if (action === 'delete') this.handleDeleteSession(sessionId, targetItem);
     },
-
     async handleDeleteSession(sessionId, listItemElement) {
         if (sessionId === this.state.sessionId) {
             alert('현재 대화는 삭제할 수 없습니다. 다른 대화를 선택 후 시도해주세요.');
             return;
         }
         if (!confirm('이 대화 기록을 정말로 삭제하시겠습니까?')) return;
-
         try {
             const response = await fetch('/api/delete_session', {
                 method: 'POST',
@@ -157,16 +145,12 @@
                 body: JSON.stringify({ session_id: sessionId }),
             });
             const result = await response.json();
-            if (result.status === 'success') {
-                listItemElement.remove();
-            } else {
-                alert(result.message || '삭제에 실패했습니다.');
-            }
+            if (result.status === 'success') listItemElement.remove();
+            else alert(result.message || '삭제에 실패했습니다.');
         } catch (error) {
             alert('대화 삭제 중 오류가 발생했습니다.');
         }
     },
-
     async handleLoadChat(sessionId) {
         try {
             const response = await fetch('/api/load_chat', {
@@ -176,7 +160,6 @@
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
-
             this.state.conversationHistory = data.history;
             this.state.sessionId = sessionId;
             this.updateActiveChatItem(sessionId);
@@ -186,7 +169,6 @@
             alert('대화를 불러오는 중 오류가 발생했습니다.');
         }
     },
-
     async handleNewChat() {
         if (!confirm('새 대화를 시작하시겠습니까?')) return;
         try {
@@ -197,7 +179,6 @@
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
-
             this.state.conversationHistory = data.history;
             this.state.sessionId = data.session_id;
             this.renderHistory();
@@ -207,7 +188,6 @@
             alert('새 대화를 시작하는 중 오류가 발생했습니다.');
         }
     },
-
     renderHistory() {
         this.elements.chatMessages.innerHTML = '';
         this.state.conversationHistory.forEach(msg => this.addMessage(msg.content, msg.role, false));
@@ -215,9 +195,7 @@
     },
     updateAnalysisLink() {
         const analysisLink = document.querySelector('a[href^="/analysis/"]');
-        if (analysisLink) {
-            analysisLink.href = `/analysis/${this.state.sessionId}`;
-        }
+        if (analysisLink) analysisLink.href = `/analysis/${this.state.sessionId}`;
     },
     addMessage(text, sender, doScroll = true) {
         const cssSender = sender === 'assistant' ? 'bot' : sender;
@@ -239,13 +217,10 @@
         event.preventDefault();
         const message = this.elements.userInput.value.trim();
         if (!message) return;
-
         this.addMessage(message, 'user');
         this.elements.userInput.value = '';
-        this.showTypingIndicator(); // 로딩 애니메이션 시작
-
+        this.showTypingIndicator();
         this.state.conversationHistory.push({ role: 'user', content: message });
-
         try {
             const response = await fetch('/api/chat', {
                 method: 'POST',
@@ -254,16 +229,15 @@
             });
             const data = await response.json();
             if (data.error) throw new Error(data.error);
-            this.removeTypingIndicator(); // 응답 받으면 애니메이션 제거
+            this.removeTypingIndicator();
             this.addMessage(data.response, 'bot');
             this.state.conversationHistory.push({ role: 'assistant', content: data.response });
         } catch (error) {
             console.error('Error:', error);
-            this.removeTypingIndicator(); // 오류 시에도 애니메이션 제거
+            this.removeTypingIndicator();
             this.addMessage('죄송합니다, 응답을 받아오는 중 오류가 발생했어요.', 'bot');
         }
     },
-
     showTypingIndicator() {
         if (document.getElementById('typing-indicator')) return;
         const indicator = document.createElement('div');
@@ -273,12 +247,10 @@
         this.elements.chatMessages.appendChild(indicator);
         this.elements.chatMessages.scrollTop = this.elements.chatMessages.scrollHeight;
     },
-
     removeTypingIndicator() {
         const indicator = document.getElementById('typing-indicator');
         if (indicator) indicator.remove();
     },
-
     handleMessageContextMenu(e) {
         const target = e.target.closest('.bot-message');
         if (!target) return;
@@ -289,13 +261,11 @@
         menu.style.top = `${e.clientY}px`;
         menu.style.display = 'block';
     },
-
     handleContextMenuAction(e) {
         const action = e.target.closest('[data-action]').dataset.action;
         if (action === 'save-message') this.saveMessage(this.state.contextMessage);
         this.elements.contextMenu.style.display = 'none';
     },
-
     async saveMessage(text) {
         try {
             const response = await fetch('/api/like_message', {
@@ -310,11 +280,8 @@
         }
     },
     };
-
     window.addEventListener('pageshow', (event) => {
-        if (event.persisted) {
-            ChatManager.loadSidebarChats();
-        }
+        if (event.persisted) ChatManager.loadSidebarChats();
     });
     window.addEventListener('DOMContentLoaded', () => ChatManager.init());
 </script>
