@@ -4,22 +4,48 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 친구 선택하기 - 미니멀</title>
-    <style>
 
+    <!-- All CSS rules must be inside a <style> tag -->
+    <style>
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
 
-        /* --- 기본 스타일 및 배경 사진 설정 --- */
+        /* --- Pastel Color Variables --- */
+        :root {
+            --pastel-blue: #a1c4fd;
+            --pastel-pink: #ffc2d1;
+            --pastel-purple: #c2a1fd;
+        }
+
+        /* --- Base Styles & Layered Background --- */
         body {
             font-family: 'Noto Sans KR', sans-serif;
 
-            /* 배경 이미지 유지 */
-            background-image: url("/static/images/forest.jpeg");
-            background-size: 45%;          /* 배경이 화면을 가득 채우도록 설정 */
-            background-position: center;     /* 배경 이미지의 중앙을 기준으로 표시 */
-            background-attachment: fixed;    /* 화면을 스크롤해도 배경은 고정 */
-            background-color: #333;          /* 이미지 로딩 전/후 대비책 */
+            /* 1. Forest image on top, 2. Gradient on the bottom */
+            background-image:
+                url("/static/images/forest2.png"), /* Layer 1: Image */
+                linear-gradient(125deg, var(--pastel-blue), var(--pastel-pink), var(--pastel-purple), var(--pastel-blue)); /* Layer 2: Gradient */
 
-            /* 전체 레이아웃: 상단에서 시작 (버튼, 제목, 카드 순) */
+            /* Set properties for each background layer, separated by commas */
+            background-size:
+                50%,                /* 1. Image size */
+                400% 400%;          /* 2. Gradient size (for animation) */
+
+            background-repeat:
+                no-repeat,          /* 1. Image does not repeat */
+                no-repeat;          /* 2. Gradient does not repeat */
+
+            background-position:
+                center,             /* 1. Image is centered */
+                0% 50%;             /* 2. Gradient animation start position */
+
+            background-attachment:
+                fixed,              /* 1. Image is fixed on scroll */
+                fixed;              /* 2. Gradient is fixed on scroll */
+
+            /* Apply animation to the gradient background */
+            animation: shimmer-animation 20s ease infinite;
+
+            /* --- Flexbox Layout --- */
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
@@ -31,86 +57,83 @@
             overflow-x: hidden;
         }
 
-        /* --- 메인 컨테이너: 투명하고 중앙에 위치 --- */
+        /* --- Background Animation Keyframes --- */
+        @keyframes shimmer-animation {
+            0%   { background-position: center, 0% 50%; }
+            50%  { background-position: center, 100% 50%; }
+            100% { background-position: center, 0% 50%; }
+        }
+
+        /* --- Main Container --- */
         .main-container {
             text-align: center;
             max-width: 900px;
             width: 100%;
             padding: 30px;
             border-radius: 20px;
-            /* 배경 제거: 완전히 투명하게 설정 */
             background-color: transparent;
             box-shadow: none;
             z-index: 10;
-            margin-top: 50px; /* 상단 여백 추가 */
+            margin-top: 500px;
         }
 
-        /* -----------------------------------------------------------
-           --- 제목/부제목 스타일 (배경 위에 보이도록 흰색/그림자 추가) ---
-           ----------------------------------------------------------- */
+        /* --- Title & Subtitle --- */
         h1 {
-            color: white; /* 텍스트를 흰색으로 변경 */
+            color: white;
             margin-bottom: 10px;
             font-size: 2.5em;
-            /* 가독성을 위한 진한 그림자 추가 */
             text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.9);
         }
         p.subtitle {
-            color: #f0f0f0; /* 텍스트 색상을 밝은 회색으로 변경 */
+            color: #f0f0f0;
             margin-bottom: 40px;
             font-size: 1.1em;
-            /* 가독성을 위한 그림자 추가 */
             text-shadow: 1px 1px 4px rgba(0, 0, 0, 0.8);
         }
 
+        /* --- Character Selection Layout --- */
         .character-selection {
             display: flex;
-            justify-content: center;
+            justify-content: space-around;
             gap: 40px;
             flex-wrap: wrap;
         }
 
-        /* --- 캐릭터 카드 스타일 (배경 투명하게 변경) --- */
+        /* --- Character Card --- */
         .character-card {
-
             border-radius: 16px;
             padding: 30px;
             width: 300px;
             text-align: center;
-            text-decoration: none; /* 링크 밑줄 제거 */
-            color: white; /* 기본 텍스트 색상을 흰색으로 설정 */
-            transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.3s ease;
             display: flex;
             flex-direction: column;
             align-items: center;
             gap: 15px;
-            position: relative;
+            position: relative; /* Anchor for speech bubble */
             cursor: pointer;
         }
         .character-card:hover {
             transform: translateY(-10px);
-
         }
         .profile-img {
             width: 140px;
             height: 150px;
             border-radius: 50%;
             object-fit: cover;
-
         }
-
         .character-name {
             font-size: 1.8em;
             font-weight: bold;
             margin: 10px 0 5px 0;
-            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8); /* 이름에 그림자 추가 */
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
         }
 
-        /* --- 말풍선 (Speech Bubble) 스타일 --- */
+        /* --- Speech Bubble --- */
         .speech-bubble {
             position: absolute;
-            top: -55px; /* 캐릭터 카드 상단으로부터의 거리 조정 */
-            right: -20px; /* 캐릭터 카드 오른쪽으로부터의 거리 조정 */
             background-color: rgba(255, 255, 255, 0.95);
             color: #333;
             padding: 8px 12px;
@@ -124,62 +147,30 @@
             visibility: hidden;
             transition: opacity 0.3s ease, transform 0.3s ease;
             z-index: 50;
-            transform: translateY(10px); /* 호버 전에는 살짝 아래에 숨김 */
+            transform: translateY(10px);
         }
-
-        /* 왼쪽 아래 말풍선 */
-.speech-bubble.left-bottom {
-    top: auto;                /* 위쪽 기준 제거 */
-    bottom: 190px;            /* 카드 아래쪽에서 띄우기 */
-    left: 0;                  /* 카드 왼쪽 기준 */
-    right: auto;
-    background-color: rgba(255, 255, 255, 0.95);
-    color: #333;
-    padding: 8px 12px;
-    border-radius: 12px;
-    font-size: 0.85em;
-    font-weight: 500;
-    width: 160px;
-    text-align: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.3s ease, transform 0.3s ease;
-    z-index: 50;
-    transform: translateY(10px);
-}
-
-/* 왼쪽 아래 말풍선 꼬리 */
-.speech-bubble.left-bottom::after {
-    content: '';
-    position: absolute;
-    top: 59px;                       /* 꼬리가 위로 향하도록 */
-    left: 150px;                       /* 꼬리 위치 조정 */
-    width: 40;
-    height: 40;
-    border-left: 8px solid transparent;
-    border-right: 8px solid transparent;
-    border-top: 8px solid rgba(255, 255, 255, 0.95); /* 위쪽으로 향하는 삼각형 */
-}
-
-/* 호버 시 표시 */
-.character-card:hover .speech-bubble {
-    opacity: 1;
-    visibility: visible;
-    transform: translateY(0);
-}
-
-}
-
-}
-
-        /* 호버 시 말풍선 표시 */
+        .speech-bubble.left-bottom {
+            top: auto;
+            bottom: 190px;
+            right: 0;
+            right: auto;
+        }
+        .speech-bubble.left-bottom::after {
+            content: '';
+            position: absolute;
+            top: 100%; /* Position the tail at the bottom */
+            left: 100px;
+            width: 0;
+            height: 0;
+            border-left: 8px solid transparent;
+            border-right: 8px solid transparent;
+            border-top: 8px solid rgba(255, 255, 255, 0.95);
+        }
         .character-card:hover .speech-bubble {
             opacity: 1;
             visibility: visible;
             transform: translateY(0);
         }
-
         .speech-bubble .name {
             font-weight: 700;
             margin-bottom: 3px;
@@ -190,12 +181,10 @@
             color: #555;
             line-height: 1.3;
         }
-
         .character-card.ho .speech-bubble .name { color: #d9534f; }
         .character-card.ung .speech-bubble .name { color: #4242c4; }
 
-
-        /* --- 저장한 메시지 보기 버튼 스타일 --- */
+        /* --- Top Right Button --- */
         .top-right-button {
             position: fixed;
             top: 25px;
@@ -215,7 +204,7 @@
             background-color: #5a6268;
         }
 
-        /* ⭐ --- 프로필 모달 스타일 시작 (필요한 모든 스타일 포함) --- */
+        /* --- Profile Modal --- */
         .profile-modal-overlay {
             position: fixed;
             top: 0;
@@ -223,7 +212,7 @@
             width: 100%;
             height: 100%;
             background-color: rgba(0, 0, 0, 0.6);
-            display: none; /* 초기에는 숨김 */
+            display: none;
             justify-content: center;
             align-items: center;
             z-index: 110;
@@ -232,15 +221,12 @@
             transition: opacity 0.3s ease;
             pointer-events: none;
         }
-
-        /* 모달 표시를 위한 클래스 */
         .profile-modal-overlay.show {
             display: flex;
             opacity: 1;
             visibility: visible;
             pointer-events: auto;
         }
-
         .profile-modal-content {
             background-color: white;
             padding: 30px;
@@ -256,37 +242,32 @@
         .profile-modal-overlay.show .profile-modal-content {
             transform: scale(1);
         }
-
         .modal-img {
             width: 100px;
             height: 100px;
             border-radius: 50%;
             margin-bottom: 15px;
         }
-
         .modal-title h2 {
             font-size: 1.8em;
             margin: 0 0 5px 0;
             font-weight: 700;
-            color: #333; /* 모달 배경이 흰색이므로 텍스트는 어둡게 */
+            color: #333;
         }
         .modal-title p {
             font-size: 1em;
             color: #555;
             margin-bottom: 20px;
         }
-
         .modal-body {
             text-align: left;
         }
-
         .modal-section {
             margin-bottom: 20px;
         }
         .modal-section:last-child {
             margin-bottom: 0;
         }
-
         .modal-section h4 {
             font-size: 1.0em;
             font-weight: 700;
@@ -295,14 +276,12 @@
             border-left: 3px solid;
             padding-left: 8px;
         }
-
         .modal-section p {
             font-size: 0.9em;
             line-height: 1.7;
             color: #444;
             margin: 0;
         }
-
         .tags {
             display: flex;
             flex-wrap: wrap;
@@ -310,15 +289,12 @@
             justify-content: center;
             margin-bottom: 20px;
         }
-
         .tags span {
             font-size: 0.8em;
             padding: 5px 12px;
             border-radius: 15px;
             font-weight: 500;
         }
-
-        /* 캐릭터별 모달 테마 */
         .profile-modal-content.ho .modal-title h2,
         .profile-modal-content.ho .modal-section h4 {
             border-color: #d9534f;
@@ -328,7 +304,6 @@
             background-color: #fbe9e7;
             color: #c62828;
         }
-
         .profile-modal-content.ung .modal-title h2,
         .profile-modal-content.ung .modal-section h4 {
             border-color: #4242c4;
@@ -338,7 +313,6 @@
             background-color: #e8eaf6;
             color: #283593;
         }
-
         .start-chat-btn {
             display: inline-block;
             padding: 12px 25px;
@@ -352,14 +326,13 @@
         .start-chat-btn.ho { background-color: #d9534f; }
         .start-chat-btn.ung { background-color: #4242c4; }
         .start-chat-btn:hover { opacity: 0.85; }
-        /* ⭐ --- 프로필 모달 스타일 끝 --- */
 
-
-        /* --- 미디어 쿼리 (반응형 디자인) --- */
+        /* --- Media Queries for Responsive Design --- */
         @media (max-width: 768px) {
             body {
                 padding: 10px;
                 background-attachment: scroll;
+                background-size: 90%, 400% 400%; /* Make image larger on mobile */
             }
             .main-container {
                 padding: 20px 15px;
@@ -375,7 +348,6 @@
                 max-width: none;
             }
             .top-right-button {
-                /* 모바일에서는 상단에 고정되지 않도록 변경 */
                 position: static;
                 margin-bottom: 20px;
             }
@@ -383,14 +355,13 @@
     </style>
 </head>
 <body>
-
+<!-- The <div class="gradient-bg"></div> is no longer needed as the background is applied directly to the body -->
 <a href="/favorites" class="top-right-button">저장한 메시지 보기</a>
-
 <div class="main-container">
 
     <div class="character-selection">
 
-        <!-- 호 카드 -->
+        <!-- Ho Card -->
         <div id="card-ho" class="character-card ho" data-char-id="ho">
             <div class="speech-bubble left-bottom">
                 <span class="name">활기찬 친구, 호</span>
@@ -399,7 +370,7 @@
             <img src="/static/images/chat_ho2.png" alt="호 프로필 사진" class="profile-img">
         </div>
 
-        <!-- 웅 카드 -->
+        <!-- Ung Card -->
         <div id="card-ung" class="character-card ung" data-char-id="ung">
             <div class="speech-bubble left-bottom">
                 <span class="name">차분한 조언가, 웅</span>
@@ -408,34 +379,19 @@
             <img src="/static/images/chat_ung2.png" alt="웅 프로필 사진" class="profile-img">
         </div>
 
-
     </div>
+    <!-- This extra closing </div> was removed as it was breaking the layout -->
+</div>
+
+<!-- Profile Details Modal Overlay -->
+<div id="profile-modal" class="profile-modal-overlay">
+    <div id="modal-content" class="profile-modal-content">
+        <!-- Content will be populated by JS -->
     </div>
+</div>
 
-    <!-- 프로필 상세 모달 오버레이 -->
-    <div id="profile-modal" class="profile-modal-overlay">
-        <div id="modal-content" class="profile-modal-content">
-            <!-- JS로 내용이 채워질 예정 -->
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-  const ho = document.querySelector('#card-ho');
-  const ung = document.querySelector('#card-ung');
-
-  ho.style.position = 'absolute';
-  ung.style.position = 'absolute';
-
-  // 직접 좌표 지정
-  ho.style.left = '700px';
-  ho.style.top = '360px';
-
-  ung.style.left = '400px';
-  ung.style.top = '200px';
-});
-
-        const characterData = {
+<script>
+    const characterData = {
         'ho': {
             name: '활기찬 친구, 호 🐯',
             ageJob: '24세, 체육교육과 대학생',
@@ -458,13 +414,13 @@
     const modalContent = document.getElementById('modal-content');
 
     /**
-     * 모달 내용을 설정하고 표시합니다.
-     * @param {string} charId 캐릭터 ID ('ho' 또는 'ung')
+     * Sets the modal content and displays it.
+     * @param {string} charId The character ID ('ho' or 'ung')
      */
     function showModal(charId) {
         const char = characterData[charId];
 
-        // 모달 콘텐츠 생성
+        // Create modal content
         modalContent.className = 'profile-modal-content ' + charId;
         modalContent.innerHTML = `
             <img src="${char.imageUrl}" alt="${char.name.split(' ')[0]} 프로필 사진" class="modal-img">
@@ -493,15 +449,15 @@
     }
 
     /**
-     * 모달을 닫습니다.
+     * Hides the modal.
      */
     function hideModal() {
         modalOverlay.classList.remove('show');
     }
 
-    // --- 이벤트 리스너 설정 ---
+    // --- Event Listeners ---
 
-    // 캐릭터 카드 클릭 시 모달 표시
+    // Show modal on character card click
     document.querySelectorAll('.character-card').forEach(card => {
         card.addEventListener('click', (e) => {
              e.preventDefault();
@@ -510,21 +466,18 @@
         });
     });
 
-    // 모달 외부 클릭 시 닫기
+    // Hide modal on overlay click
     modalOverlay.addEventListener('click', (e) => {
-        // 모달 오버레이 자체를 클릭했을 때만 닫기
+        // Only close if the overlay itself is clicked, not the content inside
         if (e.target === modalOverlay) {
             hideModal();
         }
     });
 
-    // 모바일 환경에서 호버 효과를 제거하고 클릭 시 즉시 모달이 뜨도록 설정
+    // On mobile, ensure clicks trigger the modal directly
     document.addEventListener('DOMContentLoaded', () => {
         if (window.innerWidth <= 768) {
-            // 모바일에서는 카드를 클릭하면 바로 모달을 띄웁니다.
             document.querySelectorAll('.character-card').forEach(card => {
-                // 이전에 'handleCardClick'이 있었다면 제거하지만, 현재는 익명 함수로 처리하므로 다시 추가하지 않아도 됨
-                // card.removeEventListener('click', handleCardClick);
                 card.addEventListener('click', (e) => {
                      e.preventDefault();
                      const charId = card.getAttribute('data-char-id');
@@ -533,7 +486,7 @@
             });
         }
     });
-    </script>
+</script>
 
 </body>
 </html>
