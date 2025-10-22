@@ -6,12 +6,18 @@
     <title>AI 친구 선택하기</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;700;800;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap'); /* DM 목록 폰트용 */
 
         :root {
             --ho-color: #ff7086;
             --ung-color: #728dff;
             --text-color: #333;
             --bg-color: #f0f2f5;
+
+            /* ⭐ 채팅 위젯 색상 변수 ⭐ */
+            --insta-blue: #0095f6;
+            --soft-blue: #e8f0ff;
+            --gray-light: #f5f5f5;
         }
 
         body {
@@ -22,12 +28,10 @@
             overflow-x: hidden;
         }
 
-        /* --- 전체 레이아웃 --- */
+        /* --- 기존 레이아웃 (유지) --- */
         .story-container {
             width: 100%;
         }
-
-        /* --- 헤더 --- */
         .intro-header {
             height: 100vh;
             display: flex;
@@ -62,7 +66,7 @@
             60% { transform: translateY(-5px); }
         }
 
-        /* --- 분할 화면 --- */
+        /* --- 분할 화면 (유지) --- */
         .split-view {
             display: flex;
             width: 100%;
@@ -79,7 +83,7 @@
         }
         .character-column.ho { border-right: 1px solid #e0e0e0; }
 
-        /* --- 스크롤 애니메이션 --- */
+        /* --- 스크롤 애니메이션 (유지) --- */
         .story-section {
             opacity: 0;
             transform: translateY(40px);
@@ -105,7 +109,7 @@
         .story-section.ho blockquote { border-color: var(--ho-color); }
         .story-section.ung blockquote { border-color: var(--ung-color); }
 
-        /* ⭐ [핵심 수정] 최종 선택 섹션 스타일 */
+        /* --- 최종 선택 섹션 (유지) --- */
         .final-selection {
             background-color: var(--bg-color);
             padding: 10vh 20px;
@@ -173,7 +177,7 @@
             top: 25px; right: 25px;
             padding: 10px 20px;
             background-color: #fff;
-            color: var(--text-color-dark);
+            color: var(--text-color); /* 색상 변수 사용 */
             text-decoration: none;
             border-radius: 8px;
             font-weight: 500;
@@ -186,6 +190,114 @@
             background-color: #e9ecef;
         }
 
+
+        /* --------------------------------- */
+        /* ⭐ [추가] 채팅 위젯 스타일 ⭐ */
+        /* --------------------------------- */
+        .chat-icon-button {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, var(--insta-blue), #00d0ff);
+            color: white;
+            border: none;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+            cursor: pointer;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            z-index: 1000;
+        }
+
+        .chat-icon-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+        }
+
+        /* DM 팝업 창 스타일 */
+        .dm-window {
+            font-family: 'Noto Sans KR', sans-serif; /* DM 팝업만 다른 폰트 적용 */
+            position: fixed;
+            bottom: 100px;
+            right: 30px;
+
+            opacity: 0;
+            visibility: hidden;
+            transform: scale(0.9) translateY(20px);
+            transition: opacity 0.3s ease, transform 0.3s ease, visibility 0.3s ease;
+
+            background-color: var(--soft-blue);
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            max-width: 350px;
+            height: 500px;
+            max-height: 700px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 999;
+        }
+
+        .dm-window.active {
+            opacity: 1;
+            visibility: visible;
+            transform: scale(1) translateY(0);
+        }
+
+        /* DM 창 내부 스타일 (간소화) */
+        .dm-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--gray-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: 700;
+            color: var(--text-color);
+            background-color: var(--soft-blue);
+        }
+        .dm-header-title { font-size: 1.1em; }
+        .dm-header-icon { color: var(--insta-blue); font-size: 1.5em; cursor: pointer; }
+        .dm-search { padding: 10px 15px; background-color: var(--soft-blue); }
+        .dm-search input {
+            width: 100%; padding: 8px 15px; border: none; border-radius: 10px;
+            background-color: var(--gray-light); font-size: 0.9em; box-sizing: border-box; outline: none;
+        }
+        .dm-list { flex-grow: 1; overflow-y: auto; padding: 0; background-color: var(--soft-blue); }
+        .dm-item {
+            display: flex; align-items: center; padding: 12px 15px; text-decoration: none; color: var(--text-color);
+            transition: background-color 0.2s; cursor: pointer;
+        }
+        .dm-item:hover { background-color: rgba(255, 255, 255, 0.7); }
+        .dm-profile-img {
+            width: 48px; height: 48px; border-radius: 50%; object-fit: cover; margin-right: 15px;
+            border: 2px solid transparent; background-image: linear-gradient(white, white), radial-gradient(circle at top left, var(--ho-color), var(--ung-color));
+            background-origin: border-box; background-clip: content-box, border-box;
+        }
+        .dm-content { flex-grow: 1; }
+        .dm-name { font-size: 1.05em; font-weight: 700; margin-bottom: 3px; }
+        .dm-message { font-size: 0.9em; color: #777; }
+
+
+        /* --- 모바일 반응형 (위젯 부분) --- */
+        @media (max-width: 500px) {
+            .dm-window {
+                bottom: 0; right: 0; width: 100%; height: 100vh;
+                max-width: none; max-height: none; border-radius: 0; box-shadow: none;
+                transform: scale(1) translateY(100vh); /* 아래로 숨김 */
+            }
+            .dm-window.active {
+                transform: scale(1) translateY(0); /* 위로 올림 */
+            }
+            .chat-icon-button {
+                bottom: 20px; right: 20px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -249,10 +361,52 @@
     </section>
 </div>
 
+<div id="dm-window" class="dm-window">
+
+    <div class="dm-header">
+        <div style="visibility: hidden;">&lt;</div> <span class="dm-header-title">AI 친구 목록</span>
+        <div class="dm-header-icon" title="새로운 대화 시작">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-edit"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+        </div>
+    </div>
+
+    <div class="dm-search">
+        <input type="text" placeholder="친구 찾기 ">
+    </div>
+
+    <div class="dm-list">
+        <a id="dm-item-ho" href="/chat/ho" class="dm-item" data-char-id="ho">
+            <img src="/static/images/profile_ho.png" alt="호 프로필" class="dm-profile-img">
+            <div class="dm-content">
+                <div class="dm-name">활기찬 친구, 호 🐯</div>
+                <div class="dm-message">
+                    <span class="dm-last-msg">고민은 깨야 할 퀘스트! 오늘도 화이팅이야!</span>
+                </div>
+            </div>
+        </a>
+
+        <a id="dm-item-ung" href="/chat/ung" class="dm-item" data-char-id="ung">
+            <img src="/static/images/profile_ung.png" alt="웅 프로필" class="dm-profile-img">
+            <div class="dm-content">
+                <div class="dm-name">차분한 조언가, 웅 🐻</div>
+                <div class="dm-message">
+                    <span class="dm-last-msg">당신의 마음속 복잡한 실타래를 함께 풀어가요.</span>
+                </div>
+            </div>
+        </a>
+
+    </div>
+</div>
+
+<button id="chat-icon-button" class="chat-icon-button" title="AI 친구 목록 열기">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-square"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+</button>
+
+
 <script>
     document.addEventListener('DOMContentLoaded', () => {
+        // 기존 스크롤 애니메이션 로직
         const revealElements = document.querySelectorAll('.scroll-reveal');
-
         const observer = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
@@ -262,9 +416,38 @@
         }, {
             threshold: 0.1
         });
-
         revealElements.forEach(el => {
             observer.observe(el);
+        });
+
+        // ⭐ [추가] 채팅 위젯 로직 ⭐
+        const dmWindow = document.getElementById('dm-window');
+        const chatIconButton = document.getElementById('chat-icon-button');
+
+        // 팝업 토글 함수
+        chatIconButton.addEventListener('click', () => {
+            dmWindow.classList.toggle('active');
+        });
+
+        // DM 목록 항목 클릭 시 해당 채팅방으로 이동
+        document.querySelectorAll('.dm-item').forEach(item => {
+            item.addEventListener('click', (e) => {
+                e.preventDefault();
+                const charId = item.getAttribute('data-char-id');
+                // '/chat/{charId}'로 바로 이동하여 채팅 세션을 시작하도록 설정
+                window.location.href = `/chat/${charId}`;
+            });
+        });
+
+        // 팝업 외부를 클릭하면 팝업 닫기 (PC 환경에서만 적용)
+        document.addEventListener('click', (e) => {
+            const isClickedOnButton = chatIconButton.contains(e.target);
+            const isClickedInsideWindow = dmWindow.contains(e.target);
+
+            // 버튼이 눌린 것도 아니고, 팝업 창 내부도 아닌 곳이 클릭되었으며, 팝업이 활성화되어 있다면 닫기
+            if (dmWindow.classList.contains('active') && !isClickedOnButton && !isClickedInsideWindow) {
+                dmWindow.classList.remove('active');
+            }
         });
     });
 </script>
