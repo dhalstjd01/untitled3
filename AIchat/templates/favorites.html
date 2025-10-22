@@ -1,190 +1,253 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>저장한 메시지</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@400;500;700&display=swap');
 
-  <title>저장한 메시지</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap');
-    body {
-      font-family: 'Noto Sans KR', sans-serif;
+        :root {
+            --pastel-blue: #bde0fe;
+            --pastel-pink: #ffc8dd;
+            --pastel-purple: #e7d1ff;
+            --text-color-dark: #2c3e50;
+        }
 
-      margin: 0;
-      padding: 20px;
-    }
-    .container {
-      max-width: 800px;
-      margin: 0 auto;
-      background-color: #fff;
-      padding: 20px 30px;
-      border-radius: 12px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-    }
-    h1 {
-      color: #333;
-      border-bottom: 2px solid #eee;
-      padding-bottom: 15px;
-      margin-top: 0;
-    }
-    .home-button {
-      display: inline-block;
-      margin-bottom: 20px;
-      padding: 8px 16px;
-      background-color: #007bff;
-      color: white;
-      text-decoration: none;
-      border-radius: 6px;
-      font-weight: 500;
-      transition: background-color 0.3s;
-    }
-    .home-button:hover {
-      background-color: #0056b3;
-    }
-    .favorite-item {
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
-      margin-bottom: 15px;
-      padding: 15px;
-      background-color: #fdfdfd;
-      position: relative;
-      padding-right: 40px;
-    }
-    .message-content {
-      font-size: 1.05em;
-      line-height: 1.6;
-      color: #333;
-      margin-bottom: 10px;
-      white-space: pre-wrap;
-    }
-    .message-meta {
-      text-align: right;
-      font-size: 0.85em;
-      color: #888;
-    }
-    .bot-name-ho { color: #d9534f; font-weight: bold; }
-    .bot-name-ung { color: #4242c4; font-weight: bold; }
+        body {
+            font-family: 'Pretendard', sans-serif;
+            margin: 0;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #1a1a1a;
+        }
 
-    .delete-button {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      background: none;
-      border: 1px solid #ddd;
-      color: #aaa;
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      cursor: pointer;
-      font-weight: bold;
-      font-size: 16px;
-      line-height: 26px;
-      text-align: center;
-      transition: all 0.2s ease;
-    }
-    .delete-button:hover {
-      background-color: #e57373;
-      color: white;
-      border-color: #e57373;
-    }
+        .gradient-bg {
+            position: fixed;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: linear-gradient(125deg, var(--pastel-blue), var(--pastel-pink), var(--pastel-purple), var(--pastel-blue));
+            background-size: 200% 200%;
+            animation: shimmer-animation 20s ease infinite;
+            z-index: -1;
+        }
 
-  </style>
+        @keyframes shimmer-animation {
+            0% { background-position: 0% 0%; }
+            50% { background-position: 100% 100%; }
+            100% { background-position: 0% 0%; }
+        }
+
+        .main-container {
+            width: 90%;
+            max-width: 700px;
+            height: 85vh;
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border-radius: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(31, 38, 135, 0.2);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .header {
+            padding: 20px 30px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            text-align: center;
+            flex-shrink: 0;
+        }
+
+        .header h1 {
+            margin: 0;
+            color: var(--text-color-dark);
+            font-size: 1.5em;
+        }
+
+        .favorites-list-container {
+            padding: 15px;
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        .favorite-card {
+            background: rgba(255, 255, 255, 0.6);
+            border-radius: 16px;
+            padding: 20px;
+            margin: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            border: 1px solid rgba(255, 255, 255, 0.4);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .bot-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .bot-profile-img {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .bot-name {
+            font-weight: 700;
+            color: var(--text-color-dark);
+        }
+
+        .delete-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+        }
+
+        .delete-btn svg {
+            width: 20px;
+            height: 20px;
+            fill: #aaa;
+            transition: fill 0.2s;
+        }
+
+        .delete-btn:hover svg {
+            fill: #e74c3c;
+        }
+
+        .message-content {
+            font-size: 0.95em;
+            line-height: 1.6;
+            color: #333;
+            white-space: pre-wrap;
+        }
+
+        .liked-date {
+            font-size: 0.8em;
+            color: #666;
+            text-align: right;
+            margin-top: 10px;
+        }
+
+        .back-button {
+            position: absolute;
+            top: 25px;
+            left: 25px;
+            padding: 10px 20px;
+            background-color: rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.4);
+            color: var(--text-color-dark);
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 500;
+            font-size: 0.9em;
+            transition: background-color 0.3s;
+        }
+        .back-button:hover {
+            background-color: rgba(255,255,255,0.5);
+        }
+
+    </style>
 </head>
 <body>
-<div class="container">
-  <h1>저장한 메시지</h1>
-  <a href="/" class="home-button">홈으로 돌아가기</a>
-  <div id="favorites-list">
-    <p>기록을 불러오는 중...</p>
-  </div>
+<div class="gradient-bg"></div>
+<a href="/" class="back-button">메인으로 돌아가기</a>
+<div class="main-container">
+    <header class="header">
+        <h1>저장한 메시지</h1>
+    </header>
+    <div class="favorites-list-container" id="favorites-list">
+    </div>
 </div>
 
 <script>
-  // ✨ 스크립트 전체를 하나의 즉시 실행 함수로 감싸서 변수 충돌을 방지합니다.
-  (async function() {
-    const favoritesListDiv = document.getElementById('favorites-list');
-    if (!favoritesListDiv) return;
+    document.addEventListener('DOMContentLoaded', async () => {
+        const favoritesList = document.getElementById('favorites-list');
 
-    // 삭제 함수
-    async function handleDelete(messageId) {
-      if (!confirm('이 메시지를 정말로 삭제하시겠습니까?')) {
-        return;
-      }
-      try {
-        const response = await fetch('/api/delete_favorite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: messageId })
-        });
-        const result = await response.json();
-        if (result.status === 'success') {
-          const itemToRemove = document.getElementById(`favorite-${messageId}`);
-          if (itemToRemove) {
-            itemToRemove.style.transition = 'opacity 0.5s ease';
-            itemToRemove.style.opacity = '0';
-            setTimeout(() => {
-              itemToRemove.remove();
-              if (favoritesListDiv.children.length === 0) {
-                favoritesListDiv.innerHTML = '<p>저장된 메시지가 없습니다.</p>';
-              }
-            }, 500);
-          }
-        } else {
-          alert(result.message || '삭제에 실패했습니다.');
+        async function loadFavorites() {
+            try {
+                const response = await fetch('/api/favorites');
+                const messages = await response.json();
+
+                favoritesList.innerHTML = ''; // 목록 비우기
+
+                if (messages.length === 0) {
+                    favoritesList.innerHTML = '<p style="text-align: center; color: #555; margin-top: 20px;">저장된 메시지가 없습니다.</p>';
+                    return;
+                }
+
+                messages.forEach(msg => {
+                    const card = document.createElement('div');
+                    card.className = 'favorite-card';
+                    card.dataset.id = msg.id;
+
+                    const profileImgSrc = msg.bot_type === 'ho'
+                        ? '/static/images/profile_ho.png'
+                        : '/static/images/profile_ung.png';
+
+                    card.innerHTML = `
+                            <div class="card-header">
+                                <div class="bot-info">
+                                    <img src="${profileImgSrc}" alt="${msg.bot_name}" class="bot-profile-img">
+                                    <span class="bot-name">${msg.bot_name}</span>
+                                </div>
+                                <button class="delete-btn" title="삭제">
+                                    <svg xmlns="http://www.w3.org/2000/svg" height="24" viewBox="0 0 24 24" width="24"><path d="M0 0h24v24H0z" fill="none"/><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+                                </button>
+                            </div>
+                            <p class="message-content">${msg.message}</p>
+                            <div class="liked-date">${new Date(msg.liked_at).toLocaleString('ko-KR')}</div>
+                        `;
+                    favoritesList.appendChild(card);
+                });
+            } catch (error) {
+                favoritesList.innerHTML = '<p style="text-align: center; color: #e74c3c;">메시지를 불러오는 중 오류가 발생했습니다.</p>';
+                console.error('Error loading favorites:', error);
+            }
         }
-      } catch (error) {
-        console.error('Error deleting favorite:', error);
-        alert('삭제 중 오류가 발생했습니다.');
-      }
-    }
 
-    // 목록을 불러오고 렌더링하는 함수
-    function renderFavorites(messages) {
-      if (messages.length === 0) {
-        favoritesListDiv.innerHTML = '<p>저장된 메시지가 없습니다.</p>';
-        return;
-      }
-      favoritesListDiv.innerHTML = '';
-      messages.forEach(item => {
-        const favoriteItem = document.createElement('div');
-        favoriteItem.className = 'favorite-item';
-        favoriteItem.id = `favorite-${item.id}`;
+        favoritesList.addEventListener('click', async (event) => {
+            const deleteButton = event.target.closest('.delete-btn');
+            if (!deleteButton) return;
 
-        const content = document.createElement('div');
-        content.className = 'message-content';
-        content.innerText = item.message;
+            const card = deleteButton.closest('.favorite-card');
+            const messageId = card.dataset.id;
 
-        const meta = document.createElement('div');
-        meta.className = 'message-meta';
-        const savedAt = new Date(item.liked_at).toLocaleString('ko-KR');
-        meta.innerHTML = `
-                        <span class="bot-name-${item.bot_type}">${item.bot_name}</span>
-                        <span> | ${savedAt}</span>
-                    `;
+            if (confirm('이 메시지를 정말로 삭제하시겠습니까?')) {
+                try {
+                    const response = await fetch('/api/delete_favorite', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: messageId })
+                    });
+                    const result = await response.json();
+                    if (result.status === 'success') {
+                        card.remove(); // UI에서 즉시 삭제
+                    } else {
+                        alert(result.message || '삭제에 실패했습니다.');
+                    }
+                } catch (error) {
+                    alert('삭제 중 오류가 발생했습니다.');
+                }
+            }
+        });
 
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'delete-button';
-        deleteButton.innerHTML = '&times;';
-        deleteButton.title = '삭제하기';
-        deleteButton.onclick = () => handleDelete(item.id);
-
-        favoriteItem.appendChild(content);
-        favoriteItem.appendChild(meta);
-        favoriteItem.appendChild(deleteButton);
-        favoritesListDiv.appendChild(favoriteItem);
-      });
-    }
-
-    // 페이지 로드 시, 목록을 가져와서 렌더링
-    try {
-      const response = await fetch('/api/favorites');
-      const messages = await response.json();
-      renderFavorites(messages);
-    } catch (error) {
-      console.error('Error fetching favorites:', error);
-      favoritesListDiv.innerHTML = '<p>기록을 불러오는 데 실패했습니다.</p>';
-    }
-  })();
+        loadFavorites();
+    });
 </script>
 </body>
 </html>
