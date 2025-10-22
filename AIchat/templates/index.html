@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>AI 친구 선택하기</title>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;700;900&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Pretendard:wght@300;400;700;800;900&display=swap');
 
         :root {
             --ho-color: #ff7086;
@@ -19,7 +19,7 @@
             margin: 0;
             background-color: var(--bg-color);
             color: var(--text-color);
-            overflow-x: hidden; /* 가로 스크롤 방지 */
+            overflow-x: hidden;
         }
 
         /* --- 전체 레이아웃 --- */
@@ -39,7 +39,7 @@
             box-sizing: border-box;
         }
         .intro-header h1 {
-            font-size: clamp(2.5rem, 8vw, 5.5rem); /* 화면 크기에 따라 폰트 크기 조절 */
+            font-size: clamp(2.5rem, 8vw, 5.5rem);
             font-weight: 900;
             margin: 0;
             line-height: 1.2;
@@ -75,7 +75,7 @@
             padding: 0 40px;
             display: flex;
             flex-direction: column;
-            gap: 12vh; /* 섹션 사이의 간격 */
+            gap: 12vh;
         }
         .character-column.ho { border-right: 1px solid #e0e0e0; }
 
@@ -105,35 +105,68 @@
         .story-section.ho blockquote { border-color: var(--ho-color); }
         .story-section.ung blockquote { border-color: var(--ung-color); }
 
-        /* --- 최종 선택 --- */
-        .final-choice {
+        /* ⭐ [핵심 수정] 최종 선택 섹션 스타일 */
+        .final-selection {
             background-color: var(--bg-color);
             padding: 10vh 20px;
             text-align: center;
         }
-        .final-choice h3 {
+        .final-selection h3 {
             font-size: 2rem;
             font-weight: 700;
-            margin-bottom: 40px;
+            margin-bottom: 50px;
         }
-        .choice-buttons {
+        .character-selection {
             display: flex;
             justify-content: center;
-            gap: 30px;
+            gap: 40px;
+            flex-wrap: wrap;
         }
-        .choice-btn {
+        .character-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.1);
+            padding: 30px;
+            width: 300px;
+            text-align: center;
             text-decoration: none;
-            font-size: 1.2rem;
-            font-weight: 700;
-            padding: 20px 50px;
-            border-radius: 50px;
-            border: 2px solid;
-            transition: all 0.3s ease;
+            color: inherit;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 15px;
         }
-        .choice-btn.ho { border-color: var(--ho-color); color: var(--ho-color); }
-        .choice-btn.ung { border-color: var(--ung-color); color: var(--ung-color); }
-        .choice-btn.ho:hover { background-color: var(--ho-color); color: white; }
-        .choice-btn.ung:hover { background-color: var(--ung-color); color: white; }
+        .character-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 12px 24px rgba(0,0,0,0.15);
+        }
+        .profile-img {
+            width: 140px;
+            height: 140px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 4px solid var(--ho-color);
+        }
+        .character-card.ung .profile-img {
+            border-color: var(--ung-color);
+        }
+        .character-name {
+            font-size: 1.8em;
+            font-weight: bold;
+            margin: 10px 0 5px 0;
+        }
+        .character-card.ho .character-name {
+            color: var(--ho-color);
+        }
+        .character-card.ung .character-name {
+            color: var(--ung-color);
+        }
+        .character-description {
+            font-size: 0.95em;
+            color: #555;
+            line-height: 1.6;
+        }
 
         .top-right-button {
             position: fixed;
@@ -195,13 +228,25 @@
         </div>
     </main>
 
-    <footer class="final-choice">
+    <section class="final-selection">
         <h3 class="scroll-reveal">누구와 함께 하시겠습니까?</h3>
-        <div class="choice-buttons scroll-reveal">
-            <a href="/chat/ho" class="choice-btn ho">호와 대화 시작</a>
-            <a href="/chat/ung" class="choice-btn ung">웅과 대화 시작</a>
+        <div class="character-selection scroll-reveal">
+            <a href="/chat/ho" class="character-card ho">
+                <img src="/static/images/profile_ho.png" alt="호 프로필 사진" class="profile-img">
+                <div>
+                    <h2 class="character-name">활기찬 친구, 호</h2>
+                    <p class="character-description">"같이 땀 흘리며 스트레스를 날려버리자!"</p>
+                </div>
+            </a>
+            <a href="/chat/ung" class="character-card ung">
+                <img src="/static/images/profile_ung.png" alt="웅 프로필 사진" class="profile-img">
+                <div>
+                    <h2 class="character-name">차분한 조언가, 웅</h2>
+                    <p class="character-description">"따뜻한 차 한 잔과 함께 당신의 이야기를 기다릴게요."</p>
+                </div>
+            </a>
         </div>
-    </footer>
+    </section>
 </div>
 
 <script>
@@ -212,12 +257,10 @@
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
                     entry.target.classList.add('is-visible');
-                    // 한 번 나타난 후에는 관찰 중지 (선택사항)
-                    // observer.unobserve(entry.target);
                 }
             });
         }, {
-            threshold: 0.1 // 요소가 10% 보였을 때 애니메이션 실행
+            threshold: 0.1
         });
 
         revealElements.forEach(el => {
